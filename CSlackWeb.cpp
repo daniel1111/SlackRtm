@@ -35,9 +35,9 @@ int CSlackWeb::get_ws_url(std::string &url)
     return -1;
 
   url = extract_value(payload, "url");
-  
-  
-  string users = extract_users(payload);
+
+  extract_users(payload);
+  extract_channels(payload);
   // dbg("payload = " + payload);
 
   return 0;
@@ -134,7 +134,7 @@ string CSlackWeb::extract_value(string json_in, string param)
   return result;
 }
 
-string CSlackWeb::extract_users(string json_in)
+int CSlackWeb::extract_users(string json_in)
 /*
  */
 {
@@ -142,7 +142,7 @@ string CSlackWeb::extract_users(string json_in)
   if (jobj == NULL)
   {
     dbg("extract_users> json_tokener_parse failed. JSON data: [" + json_in + "]");
-    return "";
+    return -1;
   }
 
   json_object *obj_param = json_object_object_get(jobj, "users");
@@ -150,7 +150,7 @@ string CSlackWeb::extract_users(string json_in)
   {
     dbg("extract_users> json_object_object_get failed. JSON data: [" + json_in + "]");
     json_object_put(jobj);
-    return "";
+    return -1;
   }
   
   // Expecting "users" to be an array, check it is.
@@ -159,12 +159,14 @@ string CSlackWeb::extract_users(string json_in)
   {
     dbg("extract_users> Error: \"users\" isn't an array");
     json_object_put(jobj);
-    return "";
+    return -1;
   }
   
   json_object *jarray = obj_param;
   unsigned int user_array_length = json_object_array_length(jarray);
   
+  
+  _users.clear();
   // Loop through array of user objects
   for (unsigned int idx = 0; idx < user_array_length; idx++)
   {
@@ -186,6 +188,7 @@ string CSlackWeb::extract_users(string json_in)
     user_obj_name_str = json_object_get_string(user_obj_name);
 
     dbg("id: " + (string)user_obj_id_str + ", name: " + (string)user_obj_name_str);
+    _users[(string)user_obj_id_str] = (string)user_obj_name_str;
   }
 
   const char *param_val = json_object_get_string(obj_param);
@@ -194,14 +197,82 @@ string CSlackWeb::extract_users(string json_in)
     dbg("extract_users> json_object_get_string failed. JSON data: [" + json_in + "]");
     json_object_put(obj_param);
     json_object_put(jobj);
-    return "";
+    return -1;
   }
-
-
-  string result = (string)param_val;
 
   json_object_put(obj_param);
   json_object_put(jobj);
 
-  return result;
+  return 0;
+}
+
+int CSlackWeb::extract_channels(string json_in)
+/*
+ */
+{
+  json_object *jobj = json_tokener_parse(json_in.c_str());
+  if (jobj == NULL)
+  {
+    dbg("extract_channels> json_tokener_parse failed. JSON data: [" + json_in + "]");
+    return -1;
+  }
+
+  json_object *obj_param = json_object_object_get(jobj, "channels");
+  if (obj_param == NULL)
+  {
+    dbg("extract_channels> json_object_object_get failed. JSON data: [" + json_in + "]");
+    json_object_put(jobj);
+    return -1;
+  }
+  
+  // Expecting "channels" to be an array, check it is.
+  enum json_type type;
+  if (json_object_get_type(obj_param) != json_type_array)
+  {
+    dbg("extract_channels> Error: \"channels\" isn't an array");
+    json_object_put(jobj);
+    return -1;
+  }
+  
+  json_object *jarray = obj_param;
+  unsigned int channel_array_length = json_object_array_length(jarray);
+
+  _channels.clear();
+  // Loop through array of channel objects
+  for (unsigned int idx = 0; idx < channel_array_length; idx++)
+  {
+    const char *channel_obj_id_str;
+    const char *channel_obj_name_str;
+
+    json_object *channel_obj = json_object_array_get_idx(jarray, idx); 
+
+    // get id
+    json_object *channel_obj_id = json_object_object_get(channel_obj, "id");
+    if (channel_obj_id == NULL)
+      continue;
+    channel_obj_id_str = json_object_get_string(channel_obj_id);
+
+    // get name
+    json_object *channel_obj_name = json_object_object_get(channel_obj, "name");
+    if (channel_obj_name == NULL)
+      continue;
+    channel_obj_name_str = json_object_get_string(channel_obj_name);
+
+    dbg("id: " + (string)channel_obj_id_str + ", name: " + (string)channel_obj_name_str);
+    _channels[(string)channel_obj_id_str] = (string)channel_obj_name_str;
+  }
+
+  const char *param_val = json_object_get_string(obj_param);
+  if (param_val == NULL)
+  {
+    dbg("extract_channels> json_object_get_string failed. JSON data: [" + json_in + "]");
+    json_object_put(obj_param);
+    json_object_put(jobj);
+    return -1;
+  }
+
+  json_object_put(obj_param);
+  json_object_put(jobj);
+
+  return 0;
 }

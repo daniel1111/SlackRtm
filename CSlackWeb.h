@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <string>
+#include <map>
 #include <cerrno>
 #include <json/json.h>       // libjson0-dev
 #include <curl/curl.h>       // libcurl4-gnutls-dev
@@ -19,7 +20,8 @@ private:
   static size_t s_curl_write(char *data, size_t size, size_t nmemb, void *p);
   std::string extract_value(string json_in, string param);
   
-  std::string extract_users(std::string json_in);
+  int extract_users(std::string json_in);
+  int extract_channels(std::string json_in);
   
   void dbg(std::string msg);
 
@@ -28,5 +30,7 @@ private:
   
   std::string _ApiUrl;
   std::string _token;
+  std::map<std::string, std::string> _users;
+  std::map<std::string, std::string> _channels;
 };
 
