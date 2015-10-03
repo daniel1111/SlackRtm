@@ -14,9 +14,9 @@ std::string reason2text(int code);
 class CWebSocket
 {
   public:
-    CWebSocket();
-    CWebSocket(std::string address, int port, std::string path, std::string protocol);
-    ~CWebSocket();
+    CWebSocket(CLogging *log);
+    CWebSocket(std::string address, int port, std::string path, std::string protocol, CLogging *log);
+    virtual ~CWebSocket();
     int set_address(std::string address);
     int set_iface(std::string iface);
     int set_path(std::string path);

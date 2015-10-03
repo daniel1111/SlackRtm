@@ -1,5 +1,3 @@
-
-
 /*   
  * Copyright (c) 2012, Daniel Swann <hs@dswann.co.uk>
  * All rights reserved.
@@ -53,7 +51,7 @@ char *CWebSocket::store_string(string s)
   return c;
 }
 
-CWebSocket::CWebSocket()
+CWebSocket::CWebSocket(CLogging *_log)
 {
   protocol = NULL;
   path = NULL;
@@ -63,10 +61,10 @@ CWebSocket::CWebSocket()
   context = NULL;
   status = NOT_CONNECTED;
   t_service = -1;
-  log = NULL;
-  log = new CLogging();
+  log = _log;
   iface = NULL;
   pthread_mutex_init (&ws_mutex, NULL);  
+  set_protocol("");
 }
 
 
@@ -125,6 +123,7 @@ int CWebSocket::ws_open()
 {
   struct lws_context_creation_info info;
   int use_ssl;
+  char *proto;
   memset(&info, 0, sizeof info);
 
   if ((protocol == NULL) || (path == NULL) || (address == NULL) || (port == -1))
@@ -145,8 +144,14 @@ int CWebSocket::ws_open()
     log->dbg("libwebsocket_create_context failed");
     return -1;
   }
+  
   use_ssl = 1;
-  ws = libwebsocket_client_connect_extended(context, address, port, use_ssl, path, address, address, NULL, -1, this);
+  if (strlen(protocol) == 0)
+    proto = 0;
+  else
+    proto = protocol;
+  
+  ws = libwebsocket_client_connect_extended(context, address, port, use_ssl, path, address, address, proto, -1, this);
   if (ws == NULL) 
   {
     log->dbg("libwebsocket_client_connect_extended failed");
@@ -215,11 +220,16 @@ void CWebSocket::service_thread()
   
     status = NOT_CONNECTED;
     log->dbg("Websocket disconnected!");
-    libwebsocket_context_destroy(context);
+    if (context != NULL)
+    {
+      libwebsocket_context_destroy(context);
+      context = NULL;
+    }
 }
 
 CWebSocket::~CWebSocket()
 {
+  status = NOT_CONNECTED;
   
   if (address != NULL)
     free(address);
@@ -232,15 +242,10 @@ CWebSocket::~CWebSocket()
   
   if (protocol != NULL)
     free(protocol);  
-  
-  if (context != NULL)
-    libwebsocket_context_destroy(context);
-  
-  if (log!=NULL)
-  {
-    delete log;
-    log=NULL;
-  }
+
+  if (t_service != -1)
+    pthread_join(t_service, NULL);
+  log->dbg("~CWebSocket(): Done");
 }
 
 int CWebSocket::ws_callback(struct libwebsocket_context *wsc, struct libwebsocket *wsi, enum libwebsocket_callback_reasons reason, void *in, size_t len)
@@ -335,51 +340,6 @@ string itos(int n)
   return out.str();
 }
 
-class slackws : public CWebSocket
-{
-public:
-  int got_data(string data)
-  {
-    log->dbg("got_data> " + data);
-  }
-  
-  void go()
-  {
-    
-        lws_set_log_level(0xFF, NULL);
-    
-    while (1)
-    {
-      // Connect to web service.  On failure, retry every 10s.
-      while (ws_open())
-        sleep(10);
-    
-      service();
-    
-      while (CWebSocket::status == CWebSocket::CONNECTED)
-      {
-        sleep(1);
-      } 
-      sleep (1);
-    } // while(1)
-  }
-  
-};
-  
-  
-int main()
-{
-  slackws osv;
 
-    osv.set_iface("eth0");
-    osv.set_port(443);
-    osv.set_address("ms404.slack-msgs.com");
-    osv.set_path("ms404.slack-msgs.com/websocket/kcgxlXVhy9aAASXg0dZHzaylnZFszYAWS5Srz4rrZZ4r2wZRFMlhAUiAkmIKNpyhxtvWbxCowKytEe02q532Gg8TyQas58cFF8vTocYeO0d5J8TNqJP4d7BXhFYRAfrGYLpiAxVnCP5fnK8re_8XWA==");
-    osv.set_protocol("slack");  /* TODO: unused, but required to connect (no actaully sent) */
-    osv.go();
-
-
-  return 0;
-}
   
 
