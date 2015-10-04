@@ -16,7 +16,7 @@ public:
   std::string get_ws_url();  
   std::string get_username_from_id(std::string user_id);
   std::string get_channel_from_id(std::string channel_id);
-
+  std::string get_id_from_channel(std::string channel_name);
   static std::string extract_value(string json_in, string param);
 
 private:

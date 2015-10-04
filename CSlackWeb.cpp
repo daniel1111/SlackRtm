@@ -59,6 +59,16 @@ string CSlackWeb::get_channel_from_id(string channel_id)
   return _channels[channel_id];
 }
 
+string CSlackWeb::get_id_from_channel(string channel_name)
+{
+  for (map<string,string>::iterator ii=_channels.begin(); ii!=_channels.end(); ++ii)
+  {
+    if ((*ii).second == channel_name)
+      return (*ii).first;
+  }
+  return "";
+}
+
 
 size_t CSlackWeb::s_curl_write(char *data, size_t size, size_t nmemb, void *p)
 /* static callback used by cURL when data is recieved. */
