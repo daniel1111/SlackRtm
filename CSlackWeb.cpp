@@ -16,6 +16,7 @@ CSlackWeb::CSlackWeb(CLogging *log, string ApiUrl, string token)
   _log = log;
   _ApiUrl = ApiUrl;
   _token = token;
+  _ws_url = "";
 }
 
 void CSlackWeb::dbg(string msg)
@@ -24,24 +25,40 @@ void CSlackWeb::dbg(string msg)
     _log->dbg(msg);
 }
 
-int CSlackWeb::get_ws_url(std::string &url)
+int CSlackWeb::init()
 {
-  int ret;
   string payload;
-
+  
   // Get data from slack
-  ret = slack_rtm_start(payload);
-  if (ret)
+  if (slack_rtm_start(payload))
     return -1;
 
-  url = extract_value(payload, "url");
+  _ws_url = extract_value(payload, "url");
 
+  // populate _users
   extract_users(payload);
+
+  // populate _channels
   extract_channels(payload);
-  // dbg("payload = " + payload);
 
   return 0;
 }
+
+string CSlackWeb::get_ws_url()
+{
+  return _ws_url;
+}
+
+string CSlackWeb::get_username_from_id(string user_id)
+{
+  return _users[user_id];
+}
+
+string CSlackWeb::get_channel_from_id(string channel_id)
+{
+  return _channels[channel_id];
+}
+
 
 size_t CSlackWeb::s_curl_write(char *data, size_t size, size_t nmemb, void *p)
 /* static callback used by cURL when data is recieved. */
@@ -104,14 +121,14 @@ string CSlackWeb::extract_value(string json_in, string param)
   json_object *jobj = json_tokener_parse(json_in.c_str());
   if (jobj == NULL)
   {
-    dbg("extract_value> json_tokener_parse failed. JSON data: [" + json_in + "]");
+    // dbg("extract_value> json_tokener_parse failed. JSON data: [" + json_in + "]");
     return "";
   }
 
   json_object *obj_param = json_object_object_get(jobj, param.c_str());
   if (obj_param == NULL)
   {
-    dbg("extract_value> json_object_object_get failed. JSON data: [" + json_in + "]");
+    // dbg("extract_value> json_object_object_get failed. JSON data: [" + json_in + "]");
     json_object_put(jobj);
     return "";
   }
@@ -119,13 +136,13 @@ string CSlackWeb::extract_value(string json_in, string param)
   const char *param_val = json_object_get_string(obj_param);
   if (param_val == NULL)
   {
-    dbg("extract_value> json_object_get_string failed. JSON data: [" + json_in + "]");
+    // dbg("extract_value> json_object_get_string failed. JSON data: [" + json_in + "]");
     json_object_put(obj_param);
     json_object_put(jobj);
     return "";
   }
 
-  dbg("extract_value> got [" + param + "] = [" + (string)param_val + "]");
+  // dbg("extract_value> got [" + param + "] = [" + (string)param_val + "]");
   string result = (string)param_val;
 
   json_object_put(obj_param);

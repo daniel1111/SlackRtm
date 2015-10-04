@@ -9,13 +9,18 @@ CSlackRTM::CSlackRTM(string token, string api_url, CLogging *log)
   _token = token;
   _api_url = api_url;
   _log = log;
-  _sws = new CSlackWS(_log, &CSlackRTM::s_slack_callback, this);
   
+  // For web api
+  _sweb = new CSlackWeb(_log, _api_url, _token);
+
+  // For real time message / websocket
+  _sws  = new CSlackWS(_log, &CSlackRTM::s_slack_callback, this);
 }
 
 CSlackRTM::~CSlackRTM()
 {
   delete _sws;
+  delete _sweb;
 }
 
 
@@ -28,9 +33,12 @@ void CSlackRTM::dbg(string msg)
 
 void CSlackRTM::go()
 {
-  // Use the web API to get a web service URL for the RTM interface
   string URL="";
-  if (get_ws_url(URL))
+
+  // Use the web API to get a web service URL for the RTM interface
+  _sweb->init();
+  URL = _sweb->get_ws_url();
+  if (URL == "")
   {
     dbg("CSlackRTM::go(): Failed to get web service URL");
     return;
@@ -59,22 +67,27 @@ int CSlackRTM::s_slack_callback(string message, void *obj) /* Static */
 
   s = (CSlackRTM*)obj;
   return s->slack_callback(message);
-
 }
 
 int CSlackRTM::slack_callback(string message)
 {
-  dbg("slack_callback> " + message);
+  string type = CSlackWeb::extract_value(message, "type");
+  dbg("slack_callback> type = [" + type + "]");
+
+  if (type == "message")
+  {
+    string user_id   = CSlackWeb::extract_value(message, "user");
+    string user_name = _sweb->get_username_from_id(user_id);
+
+    string channel_id   = CSlackWeb::extract_value(message, "channel");
+    string channel_name = _sweb->get_channel_from_id(channel_id);
+
+    string text = CSlackWeb::extract_value(message, "text");
+
+    dbg("slack_callback> #" + channel_name + "/<" + user_name + "> " + text);
+  }
 
   return 0;
-}
-
-
-int CSlackRTM::get_ws_url(string &URL)
-{
-  CSlackWeb sw(_log, _api_url, _token);
-  
-  return sw.get_ws_url(URL);
 }
 
 int CSlackRTM::split_url(string url, string &server, string &path)

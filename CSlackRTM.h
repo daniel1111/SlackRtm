@@ -14,7 +14,6 @@ public:
   void go();
 
 private:
-  int get_ws_url(std::string &URL);
   int split_url(std::string url, std::string &server, std::string &path);
   void dbg(std::string msg);
   
@@ -25,6 +24,7 @@ private:
   std::string _token;
   CLogging *_log;
   CSlackWS *_sws;
+  CSlackWeb *_sweb;
   
 };
 
