@@ -11,19 +11,39 @@ CSlackRTM::CSlackRTM(string token, string api_url, CLogging *log, SlackRTMCallba
   _log = log;
   _cb = cb;
   
-  // For web api
-  _sweb = new CSlackWeb(_log, _api_url, _token);
-
-  // For real time message / websocket
-  _sws  = new CSlackWS(_log, &CSlackRTM::s_slack_callback, this);
+  // Stuff for activity monitoring thread
+  pthread_mutex_init(&_act_mutex, NULL);
+  pthread_cond_init(&_act_condition_var, NULL);
+  
+  _last_msg_received = -1;
+  _act_thread = 0;
+  _act_thread_msg = ACT_MSG_NOTHING;
+  
+  _sweb = NULL;
+  _sws  = NULL;
 }
 
 CSlackRTM::~CSlackRTM()
 {
-  delete _sws;
-  delete _sweb;
-}
+  // Signal act_thread to stop
+  if (_act_thread)
+  {
+    pthread_mutex_lock(&_act_mutex);
+    _act_thread_msg = ACT_MSG_EXIT;
+    pthread_cond_signal(&_act_condition_var);
+    pthread_mutex_unlock(&_act_mutex);
+    
+    dbg("Join act_thread");
+    pthread_join(_act_thread, NULL);
+  }
 
+  
+  if (_sws != NULL)
+    delete _sws;
+  
+  if (_sweb != NULL)
+    delete _sweb;
+}
 
 void CSlackRTM::dbg(string msg)
 {
@@ -34,39 +54,62 @@ void CSlackRTM::dbg(string msg)
 
 void CSlackRTM::go()
 {
+  connect_to_slack();
+
+  // Create thead to monitor connection
+  pthread_create(&_act_thread, NULL, &CSlackRTM::activity_thread, this);
+
+}
+
+int CSlackRTM::connect_to_slack()
+{
   string URL="";
+  
+  // For web api
+  _sweb = new CSlackWeb(_log, _api_url, _token);
+
+  // For real time message / websocket
+  _sws  = new CSlackWS(_log, &CSlackRTM::s_slack_callback, this);  
 
   // Use the web API to get a web service URL for the RTM interface
   _sweb->init();
   URL = _sweb->get_ws_url();
   if (URL == "")
   {
-    dbg("CSlackRTM::go(): Failed to get web service URL");
-    return;
+    dbg("CSlackRTM::connect_to_slack(): Failed to get web service URL");
+    return -1;
   }
 
   // Get server + path from URL
   string server;
   string path;
   if (split_url(URL, server, path))
-    return;
+    return -1;
 
   // Connect to the websocket
-  //_sws->set_iface("eth0");
+//_sws->set_iface("eth0");
   _sws->set_port(443);
   _sws->set_address(server);
   _sws->set_path(server + path);
   _sws->start();
+  
+  _last_msg_received = time(NULL);
+  return 0;
 }
 
 
 int CSlackRTM::send(string channel, string message)
 {
-  string json_message = json_encode_slack_message(channel, message);
+  
+  if (_sws != NULL)
+  {
+    string json_message = json_encode_slack_message(channel, message);
 
-  _sws->ws_send(json_message);
-
-  return 0;
+    _sws->ws_send(json_message);
+    return 0;
+  }
+  else
+    return -1;
 }
 
 int CSlackRTM::s_slack_callback(string message, void *obj) /* Static */
@@ -79,9 +122,16 @@ int CSlackRTM::s_slack_callback(string message, void *obj) /* Static */
 
 int CSlackRTM::slack_callback(string message)
 {
+  if (_sweb == NULL)
+  {
+    dbg("CSlackRTM::slack_callback> _sweb is NULL!");
+    return -1;
+  }
+  
   string type = CSlackWeb::extract_value(message, "type");
-  dbg("slack_callback> type = [" + type + "]");
 
+  _last_msg_received = time(NULL);
+  
   // For now, only really interested in the "message" ("A message was sent to a channel") event
   if (type == "message")
   {
@@ -93,7 +143,7 @@ int CSlackRTM::slack_callback(string message)
 
     string text = CSlackWeb::extract_value(message, "text");
 
-//    dbg("slack_callback> #" + channel_name + "/<" + user_name + "> " + text);
+    // Pass the message on to the callback we were passed on construction
     _cb->cbiGotSlackMessage(channel_name, user_name, text);
   }
 
@@ -101,10 +151,13 @@ int CSlackRTM::slack_callback(string message)
 }
 
 string CSlackRTM::json_encode_slack_message(string channel_name, string text)
-/* TODO: JSON encode the post data used to add a notification channel. should look something like:
- *  { "id": "cf32051e-4135-11e5-97d6-3c970e884252", "type": "web_hook", "address": "https:\/\/lspace.nottinghack.org.uk\/temp\/google.php", "token": "1" }
- */
 {
+  if (_sweb == NULL)
+  {
+    dbg("CSlackRTM::json_encode_slack_message> _sweb is NULL!");
+    return "";
+  }
+
   int    msg_id     = get_next_msg_id();
   string channel_id = _sweb->get_id_from_channel(channel_name);
 
@@ -122,6 +175,24 @@ string CSlackRTM::json_encode_slack_message(string channel_name, string text)
   string json_encoded = json_object_to_json_string(j_obj_root);
 
   json_object_put(j_obj_root);  
+
+  return json_encoded;
+}
+
+string CSlackRTM::json_encode_slack_ping()
+{
+  int msg_id = get_next_msg_id();
+
+  json_object *j_obj_root   = json_object_new_object();
+  json_object *jstr_id      = json_object_new_int(msg_id);
+  json_object *jstr_type    = json_object_new_string("ping");
+
+  json_object_object_add(j_obj_root, "id"     , jstr_id);
+  json_object_object_add(j_obj_root, "type"   , jstr_type);
+
+  string json_encoded = json_object_to_json_string(j_obj_root);
+
+  json_object_put(j_obj_root);
 
   return json_encoded;
 }
@@ -162,4 +233,109 @@ int CSlackRTM::split_url(string url, string &server, string &path)
   path   = url.substr(path_start, string::npos);
   
   return 0;
+}
+
+void *CSlackRTM::activity_thread(void *arg)
+{
+    CSlackRTM *rtm;
+    rtm = (CSlackRTM*) arg;
+    rtm->activity_thread();
+    return NULL;
+}
+
+void CSlackRTM::activity_thread()
+/* Thread to monitor the state of the connection. If there has been no message of any kind received on the web socket in 
+ * the last minute, send a PING message. If still nothing received after a further 30 seconds, trigger a reconnect.
+ */
+{
+  int timeout = 10; // (15*60); 
+  int ping_timout = 5;
+  struct timespec to;
+  int err;
+  time_t wait_until;
+  char buf[30] = "";
+  act_msg msg;
+  bool ping_sent = false;
+  dbg("Entered activity_thread");
+
+  while (1)
+  {
+    pthread_mutex_lock(&_act_mutex); 
+
+    if (ping_sent)
+      wait_until = time(NULL) + ping_timout;
+    else
+      wait_until = _last_msg_received + timeout;
+
+    to.tv_sec = wait_until+2;
+    to.tv_nsec = 0; 
+
+    if (_act_thread_msg == ACT_MSG_NOTHING)
+    {
+      strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", localtime(&wait_until));
+      //dbg("activity_thread> Waiting until: " + (string)buf);
+    }
+
+    while (_act_thread_msg == ACT_MSG_NOTHING) 
+    {
+      err = pthread_cond_timedwait(&_act_condition_var, &_act_mutex, &to);
+      if (err == ETIMEDOUT) 
+      {
+        //dbg("activity_thread> Timeout reached");
+        break;
+      }
+    }
+    msg = _act_thread_msg;
+    if (_act_thread_msg != ACT_MSG_EXIT)
+      _act_thread_msg = ACT_MSG_NOTHING;
+
+    pthread_mutex_unlock(&_act_mutex);
+
+    if (msg == ACT_MSG_EXIT)
+    {
+      dbg("exiting activity_thread");
+      return;
+    }
+    
+    if ((time(NULL) - _last_msg_received) < timeout)
+    {
+      // We've received a message within the last 60 seconds... so nothing to do.
+      ping_sent = false;
+      continue;
+    }
+
+    if (ping_sent)
+    {
+      // nothing's been received within the timeout period, a ping's been sent, and we've still not got anything back. 
+      // Time to reconnect.
+      dbg("RECONNECT REQUIRED");
+      
+      // Taredown connection, and start again
+      if (_sws != NULL)
+        delete _sws;
+      
+      if (_sweb != NULL)
+        delete _sweb;
+      
+      connect_to_slack();
+      
+    }
+    else
+    {
+      // Nothing received within the timeout period. This is probably normal - i.e. just a case of no-one saying anything.
+      // Send a ping to check the connection is alive (server should resond near-instantly)
+      if (_sws != NULL)
+      {
+        _sws->ws_send(json_encode_slack_ping());
+      } else
+      {
+        dbg("activity_thread> _sws is NULL, can't send ping"); 
+        // still mark ping as sent, so we timout out the connection in the hope of recovering from this
+      }
+      ping_sent = true;
+    }
+
+
+  }
+  
 }

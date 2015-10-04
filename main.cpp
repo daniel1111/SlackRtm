@@ -12,30 +12,29 @@ class SlackTest : public SlackRTMCallbackInterface
 {
 private:
   CLogging *_log;
+  CSlackRTM *_rtm;
 
 public:
 
-  SlackTest()
+  SlackTest(string token, string apiurl)
   {
     _log = new CLogging();
+    _rtm = new CSlackRTM(token, apiurl, _log, this);
   }
 
   ~SlackTest()
   {
+    delete _rtm;
     delete _log;
-  }  
-  
+  }
+
   void start()
   {
-    CLogging log;
-    string token = "xoxb-11832276226-HiO5bl2qSGxdqAhqM5tca90E";
-    string apiurl = "https://slack.com/api/";
 
-    CSlackRTM SlackRtm(token, apiurl, _log, this);
-    SlackRtm.go();
-    sleep(10);
-    SlackRtm.send("general", "test message");
-    sleep(5);
+    _rtm->go();
+    sleep(2);
+    _rtm->send("general", "test message");
+    sleep(1000);
 
   }
   
@@ -43,18 +42,23 @@ public:
   {
     _log->dbg("cbiGotSlackMessage> #" + channel + "/<" + username + "> " + message);
 
+    if (message == "ping")
+      _rtm->send(channel, "PONG!");
+
     return 0;
   }
-  
 };
 
 
 int main()
 {
-  SlackTest test;
-  
+  string token = "xoxb-11832276226-HiO5bl2qSGxdqAhqM5tca90E";
+  string apiurl = "https://slack.com/api/";
+
+  SlackTest test(token, apiurl);
+
   test.start();
-  
+
   return 0;
 }
   
