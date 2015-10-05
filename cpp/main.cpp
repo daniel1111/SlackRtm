@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string>
 #include <cerrno>
+#include <iostream>
 
 #include "SlackRTMCallbackInterface.h"
 #include "CSlackRTM.h"
@@ -11,21 +12,18 @@ using namespace std;
 class SlackTest : public SlackRTMCallbackInterface
 {
 private:
-  CLogging *_log;
   CSlackRTM *_rtm;
 
 public:
 
   SlackTest(string token, string apiurl)
   {
-    _log = new CLogging();
-    _rtm = new CSlackRTM(token, apiurl, _log, this);
+    _rtm = new CSlackRTM(token, apiurl, this);
   }
 
   ~SlackTest()
   {
     delete _rtm;
-    delete _log;
   }
 
   void start()
@@ -37,15 +35,20 @@ public:
     sleep(1000);
 
   }
-  
-  int cbiGotSlackMessage(string channel, string username, string message)
+
+  int cbi_got_slack_message(string channel, string username, string message)
   {
-    _log->dbg("cbiGotSlackMessage> #" + channel + "/<" + username + "> " + message);
+    cbi_debug_message("cbi_got_slack_message> #" + channel + "/<" + username + "> " + message);
 
     if (message == "ping")
       _rtm->send(channel, "PONG!");
 
     return 0;
+  }
+  
+  void cbi_debug_message(string msg)
+  {
+    cout << "[" + msg + "]" << endl;
   }
 };
 
@@ -61,4 +64,3 @@ int main()
 
   return 0;
 }
-  

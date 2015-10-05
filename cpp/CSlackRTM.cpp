@@ -1,14 +1,42 @@
+/*
+ * Copyright (c) 2015, Daniel Swann <hs@dswann.co.uk>
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ * 
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the owner nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include "CSlackRTM.h"
 
   
 using namespace std;
 
-CSlackRTM::CSlackRTM(string token, string api_url, CLogging *log, SlackRTMCallbackInterface *cb)
+CSlackRTM::CSlackRTM(string token, string api_url, SlackRTMCallbackInterface *cb)
 {
   
   _token = token;
   _api_url = api_url;
-  _log = log;
   _cb = cb;
   
   // Stuff for activity monitoring thread
@@ -47,10 +75,8 @@ CSlackRTM::~CSlackRTM()
 
 void CSlackRTM::dbg(string msg)
 {
-  _log->dbg(msg);
+  _cb->cbi_debug_message("CSlackRTM::" + msg);
 }
-
-
 
 void CSlackRTM::go()
 {
@@ -66,17 +92,17 @@ int CSlackRTM::connect_to_slack()
   string URL="";
   
   // For web api
-  _sweb = new CSlackWeb(_log, _api_url, _token);
+  _sweb = new CSlackWeb(_api_url, _token, _cb);
 
   // For real time message / websocket
-  _sws  = new CSlackWS(_log, &CSlackRTM::s_slack_callback, this);  
+  _sws  = new CSlackWS(&CSlackRTM::s_slack_callback, this, _cb);  
 
   // Use the web API to get a web service URL for the RTM interface
   _sweb->init();
   URL = _sweb->get_ws_url();
   if (URL == "")
   {
-    dbg("CSlackRTM::connect_to_slack(): Failed to get web service URL");
+    dbg("connect_to_slack(): Failed to get web service URL");
     return -1;
   }
 
@@ -124,7 +150,7 @@ int CSlackRTM::slack_callback(string message)
 {
   if (_sweb == NULL)
   {
-    dbg("CSlackRTM::slack_callback> _sweb is NULL!");
+    dbg("slack_callback> _sweb is NULL!");
     return -1;
   }
   
@@ -144,7 +170,7 @@ int CSlackRTM::slack_callback(string message)
     string text = CSlackWeb::extract_value(message, "text");
 
     // Pass the message on to the callback we were passed on construction
-    _cb->cbiGotSlackMessage(channel_name, user_name, text);
+    _cb->cbi_got_slack_message(channel_name, user_name, text);
   }
 
   return 0;
@@ -154,7 +180,7 @@ string CSlackRTM::json_encode_slack_message(string channel_name, string text)
 {
   if (_sweb == NULL)
   {
-    dbg("CSlackRTM::json_encode_slack_message> _sweb is NULL!");
+    dbg("json_encode_slack_message> _sweb is NULL!");
     return "";
   }
 
@@ -334,8 +360,5 @@ void CSlackRTM::activity_thread()
       }
       ping_sent = true;
     }
-
-
   }
-  
 }

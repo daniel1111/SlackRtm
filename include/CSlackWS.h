@@ -1,17 +1,18 @@
 #include "CWebSocket.h"
+#include "SlackRTMCallbackInterface.h"
 
 class CSlackWS : public CWebSocket
 {
 
 public:
-  CSlackWS(CLogging *log, int (*slack_callback)(string, void*), void *cb_param);
+  CSlackWS(int (*slack_callback)(std::string, void*), void *cb_param, SlackRTMCallbackInterface *cb);
   
   
   int got_data(std::string data);
   int start();
   
 private:
-  CLogging *_log;
-  int (*_slack_callback)(string, void*);
+  int (*_slack_callback)(std::string, void*);
   void *_cb_param;
+  SlackRTMCallbackInterface *_cb;
 };

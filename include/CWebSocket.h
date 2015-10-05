@@ -1,11 +1,8 @@
-
-
 #include <string>
 #include <sstream>
 #include <pthread.h>
-#include "CLogging.h"
 #include "libwebsockets.h"
-
+#include "SlackRTMCallbackInterface.h"
  
 
 std::string itos(int n);
@@ -14,8 +11,8 @@ std::string reason2text(int code);
 class CWebSocket
 {
   public:
-    CWebSocket(CLogging *log);
-    CWebSocket(std::string address, int port, std::string path, std::string protocol, CLogging *log);
+    CWebSocket(SlackRTMCallbackInterface *cb);
+    CWebSocket(std::string address, int port, std::string path, std::string protocol, SlackRTMCallbackInterface *cb);
     virtual ~CWebSocket();
     int set_address(std::string address);
     int set_iface(std::string iface);
@@ -27,7 +24,6 @@ class CWebSocket
     int ws_send(std::string s);
     int ws_callback(struct libwebsocket_context *wsc, struct libwebsocket *wsi, enum libwebsocket_callback_reasons reason, void *in, size_t len);
     virtual int got_data(std::string data) = 0;
-    CLogging *log;
     static void *service_thread(void *arg);
     
   protected:
@@ -39,6 +35,8 @@ class CWebSocket
     struct libwebsocket_context *context;
     struct libwebsocket_protocols protocols[2];
     char *store_string(std::string s);
+    void dbg(std::string msg);
+    SlackRTMCallbackInterface *_cb;
     
     char *protocol;
     char *path;

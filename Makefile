@@ -10,7 +10,7 @@ HEAD_DIR = include/
 LIB_DIR = lib/
 CC_OUT = -o $(BUILD_DIR)$(notdir $@)
 
-OBJS = $(BUILD_DIR)CSlackRTM.o $(BUILD_DIR)CWebSocket.o $(BUILD_DIR)CSlackWS.o $(BUILD_DIR)CSlackWeb.o $(BUILD_DIR)CLogging.o
+OBJS = $(BUILD_DIR)CSlackRTM.o $(BUILD_DIR)CWebSocket.o $(BUILD_DIR)CSlackWS.o $(BUILD_DIR)CSlackWeb.o
 
 all: SlackRtmTest lib
 
@@ -25,9 +25,6 @@ $(BUILD_DIR)CSlackWeb.o: $(SRC_DIR)CSlackWeb.cpp $(HEAD_DIR)CSlackWeb.h
 $(BUILD_DIR)CSlackWS.o: $(SRC_DIR)CSlackWS.cpp $(HEAD_DIR)CSlackWS.h
 	g++ $(CPPFLAGS) $(INC) -c $(SRC_DIR)CSlackWS.cpp  $(CC_OUT)
 
-$(BUILD_DIR)CLogging.o: $(SRC_DIR)CLogging.cpp $(HEAD_DIR)CLogging.h
-	g++ $(INC) -Wall -c $(SRC_DIR)CLogging.cpp $(CC_OUT)
-
 $(BUILD_DIR)CSlackRTM.o: $(SRC_DIR)CSlackRTM.cpp $(HEAD_DIR)CSlackRTM.h
 	g++ $(INC) -Wall -c $(SRC_DIR)CSlackRTM.cpp $(CC_OUT)
 
@@ -35,7 +32,7 @@ $(BUILD_DIR)main.o: $(SRC_DIR)main.cpp
 	g++ $(INC) -Wall -c $(SRC_DIR)main.cpp $(CC_OUT)
 
 $(LIB_DIR)slackrtm.a: $(OBJS)
-	ar -cvq $(LIB_DIR)slackrtm.a $(OBJS)
+	ar -cq $(LIB_DIR)slackrtm.a $(OBJS)
 
 $(LIB_DIR)libslackrtm.a: $(LIB_DIR)slackrtm.a
 	cp ./libwebsockets/build/lib/libwebsockets.a $(LIB_DIR)libslackrtm.a

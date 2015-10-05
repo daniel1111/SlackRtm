@@ -1,5 +1,5 @@
-/*   
- * Copyright (c) 2012, Daniel Swann <hs@dswann.co.uk>
+/*
+ * Copyright (c) 2015, Daniel Swann <hs@dswann.co.uk>
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,10 @@
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <string.h>
+#include <iostream>
 #include "libwebsockets.h"
+
+using namespace std;
 
 static int ws_static_callback(struct libwebsocket_context *wsc, struct libwebsocket *wsi, 
   enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len);
@@ -51,8 +54,9 @@ char *CWebSocket::store_string(string s)
   return c;
 }
 
-CWebSocket::CWebSocket(CLogging *_log)
+CWebSocket::CWebSocket(SlackRTMCallbackInterface *cb)
 {
+  _cb = cb;
   protocol = NULL;
   path = NULL;
   address = NULL;
@@ -61,7 +65,6 @@ CWebSocket::CWebSocket(CLogging *_log)
   context = NULL;
   status = NOT_CONNECTED;
   t_service = -1;
-  log = _log;
   iface = NULL;
   pthread_mutex_init (&ws_mutex, NULL);  
   set_protocol("");
@@ -70,7 +73,7 @@ CWebSocket::CWebSocket(CLogging *_log)
 
 int CWebSocket::set_address(string address)
 {
-  log->dbg("websocket target address set to [" + address + "]");
+  dbg("websocket target address set to [" + address + "]");
   if (CWebSocket::address != NULL)
     free(CWebSocket::address);
   
@@ -80,7 +83,7 @@ int CWebSocket::set_address(string address)
 
 int CWebSocket::set_iface(string iface)
 {
-  log->dbg("websocket network interface set to [" + iface + "]");
+  dbg("websocket network interface set to [" + iface + "]");
   if (CWebSocket::iface != NULL)
     free(CWebSocket::iface);
   
@@ -90,7 +93,7 @@ int CWebSocket::set_iface(string iface)
 
 int CWebSocket::set_path(string path)
 {
-  log->dbg("websocket path set to [" + path + "]");
+  dbg("websocket path set to [" + path + "]");
   
   if (CWebSocket::path != NULL)
     free(CWebSocket::path);
@@ -101,7 +104,7 @@ int CWebSocket::set_path(string path)
 
 int CWebSocket::set_protocol(string protocol)
 {
-  log->dbg("websocket protocol set to [" + protocol + "]");
+  dbg("websocket protocol set to [" + protocol + "]");
   
   if (CWebSocket::protocol != NULL)
     free(CWebSocket::protocol);  
@@ -114,7 +117,7 @@ int CWebSocket::set_protocol(string protocol)
 
 int CWebSocket::set_port(int port)
 {
-  log->dbg("websocket port set to [" + itos(port) + "]");
+  dbg("websocket port set to [" + itos(port) + "]");
   CWebSocket::port = port;
   return 0; 
 }
@@ -128,7 +131,7 @@ int CWebSocket::ws_open()
 
   if ((protocol == NULL) || (path == NULL) || (address == NULL) || (port == -1))
   {
-    log->dbg("CWebSocket::open(): NULL required property!");
+    dbg("CWebSocket::open(): NULL required property!");
     return -1;
   }
 
@@ -141,7 +144,7 @@ int CWebSocket::ws_open()
   context = libwebsocket_create_context(&info);
   if (context == NULL) 
   {
-    log->dbg("libwebsocket_create_context failed");
+    dbg("libwebsocket_create_context failed");
     return -1;
   }
   
@@ -154,11 +157,11 @@ int CWebSocket::ws_open()
   ws = libwebsocket_client_connect_extended(context, address, port, use_ssl, path, address, address, proto, -1, this);
   if (ws == NULL) 
   {
-    log->dbg("libwebsocket_client_connect_extended failed");
+    dbg("libwebsocket_client_connect_extended failed");
     return -1;
   }
 
-  log->dbg("Websocket connection opened");
+  dbg("Websocket connection opened");
   status = CONNECTED;
 
   return 0;
@@ -169,10 +172,10 @@ int CWebSocket::ws_send(string s)
 {
   unsigned char *buf;
   
-  log->dbg("> " + s);
+  dbg("> " + s);
   if (status != CONNECTED)
   {
-    log->dbg("Not connected!");
+    dbg("Not connected!");
     return -1;
   }
   
@@ -219,7 +222,7 @@ void CWebSocket::service_thread()
     }
   
     status = NOT_CONNECTED;
-    log->dbg("Websocket disconnected!");
+    dbg("Websocket disconnected!");
     if (context != NULL)
     {
       libwebsocket_context_destroy(context);
@@ -245,7 +248,7 @@ CWebSocket::~CWebSocket()
 
   if (t_service != -1)
     pthread_join(t_service, NULL);
-  log->dbg("~CWebSocket(): Done");
+  dbg("~CWebSocket(): Done");
 }
 
 int CWebSocket::ws_callback(struct libwebsocket_context *wsc, struct libwebsocket *wsi, enum libwebsocket_callback_reasons reason, void *in, size_t len)
@@ -256,14 +259,14 @@ int CWebSocket::ws_callback(struct libwebsocket_context *wsc, struct libwebsocke
   switch (reason) 
   {
     case LWS_CALLBACK_CLOSED:
-      log->dbg("LWS_CALLBACK_CLOSED");
+      dbg("LWS_CALLBACK_CLOSED");
       status = NOT_CONNECTED;
       break;
 
     case LWS_CALLBACK_CLIENT_RECEIVE:
       ((char *)in)[len] = '\0';
       
-      log->dbg("< " + (string)((char*)in));
+      dbg("< " + (string)((char*)in));
       got_data((char*)in);
       break;
 
@@ -330,6 +333,11 @@ static int ws_static_callback(struct libwebsocket_context *wsc, struct libwebsoc
   CWebSocket *ws; 
   ws = (CWebSocket*) user;
   return ws->ws_callback(wsc, wsi, reason, in, len);
+}
+
+void CWebSocket::dbg(string msg)
+{
+  _cb->cbi_debug_message("CWebSocket::" + msg);
 }
 
 string itos(int n)

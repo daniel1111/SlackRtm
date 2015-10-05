@@ -1,7 +1,6 @@
 #include "CSlackWS.h"
 #include "CSlackWeb.h"
 #include "SlackRTMCallbackInterface.h"
-#include "CLogging.h"
 
 #include <string>
   
@@ -10,7 +9,7 @@ class CSlackRTM
 
 
 public:
-  CSlackRTM(std::string token, std::string api_url, CLogging *log, SlackRTMCallbackInterface *cb);
+  CSlackRTM(std::string token, std::string api_url, SlackRTMCallbackInterface *cb);
   ~CSlackRTM();
   void go();
   int send(std::string channel, std::string message);
@@ -29,7 +28,6 @@ private:
   time_t _last_msg_received;
   std::string _api_url;
   std::string _token;
-  CLogging *_log;
   CSlackWS *_sws;
   CSlackWeb *_sweb;
   SlackRTMCallbackInterface *_cb;
