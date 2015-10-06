@@ -34,7 +34,11 @@ $(BUILD_DIR)main.o: $(SRC_DIR)main.cpp
 $(LIB_DIR)slackrtm.a: $(OBJS)
 	ar -cq $(LIB_DIR)slackrtm.a $(OBJS)
 
-$(LIB_DIR)libslackrtm.a: $(LIB_DIR)slackrtm.a
+libwebsockets/build/lib/libwebsockets.a: 
+	mkdir -p libwebsockets/build
+	cd libwebsockets/build ; cmake .. ; make
+	
+$(LIB_DIR)libslackrtm.a: $(LIB_DIR)slackrtm.a libwebsockets/build/lib/libwebsockets.a 
 	cp ./libwebsockets/build/lib/libwebsockets.a $(LIB_DIR)libslackrtm.a
 	ar r $(LIB_DIR)libslackrtm.a $(OBJS)
 
