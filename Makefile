@@ -16,7 +16,7 @@ all: SlackRtmTest lib
 
 lib: $(LIB_DIR)libslackrtm.a
 
-$(BUILD_DIR)CWebSocket.o: $(SRC_DIR)CWebSocket.cpp $(HEAD_DIR)CWebSocket.h
+$(BUILD_DIR)CWebSocket.o: $(SRC_DIR)CWebSocket.cpp $(HEAD_DIR)CWebSocket.h libwebsockets/build/lib/libwebsockets.a
 	g++ $(CPPFLAGS) $(INC) -c $(SRC_DIR)CWebSocket.cpp  $(CC_OUT)
 
 $(BUILD_DIR)CSlackWeb.o: $(SRC_DIR)CSlackWeb.cpp $(HEAD_DIR)CSlackWeb.h
@@ -28,7 +28,7 @@ $(BUILD_DIR)CSlackWS.o: $(SRC_DIR)CSlackWS.cpp $(HEAD_DIR)CSlackWS.h
 $(BUILD_DIR)CSlackRTM.o: $(SRC_DIR)CSlackRTM.cpp $(HEAD_DIR)CSlackRTM.h
 	g++ $(INC) -Wall -c $(SRC_DIR)CSlackRTM.cpp $(CC_OUT)
 
-$(BUILD_DIR)main.o: $(SRC_DIR)main.cpp
+$(BUILD_DIR)main.o: $(SRC_DIR)main.cpp libwebsockets/build/lib/libwebsockets.a
 	g++ $(INC) -Wall -c $(SRC_DIR)main.cpp $(CC_OUT)
 
 $(LIB_DIR)slackrtm.a: $(OBJS)
