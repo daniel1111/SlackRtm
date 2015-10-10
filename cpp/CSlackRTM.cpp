@@ -129,6 +129,9 @@ int CSlackRTM::send(string channel, string message)
   
   if (_sws != NULL)
   {
+    
+    message = escape_for_slack(message);
+    
     string json_message = json_encode_slack_message(channel, message);
 
     _sws->ws_send(json_message);
@@ -170,7 +173,7 @@ int CSlackRTM::slack_callback(string message)
     string text = CSlackWeb::extract_value(message, "text");
 
     // Pass the message on to the callback we were passed on construction
-    _cb->cbi_got_slack_message(channel_name, user_name, text);
+    _cb->cbi_got_slack_message(channel_name, user_name, escape_from_slack(text));
   }
 
   return 0;
@@ -261,12 +264,58 @@ int CSlackRTM::split_url(string url, string &server, string &path)
   return 0;
 }
 
+string CSlackRTM::escape_for_slack(string message)
+/* Perform replacements:
+ * 
+ * from  to
+ * <     &lt;
+ * >     &gt; 
+ * &     &amp;
+ */
+{
+  string result = "";
+
+  char* str = (char*)message.c_str(); // utf-8 string
+  char* str_i = str;                  // string iterator
+  char* end = str+strlen(str)+1;      // end iterator
+
+  do
+  {
+    uint32_t code = utf8::next(str_i, end);
+    if (code == 0)
+      continue;
+
+    if (code == '<')
+      result += "&lt;";
+    else if (code == '>')
+      result += "&gt;";
+    else if (code == '&')
+      result += "&amp;";
+    else
+      utf8::append(code, std::back_inserter(result));
+  }
+  while (str_i < end);
+
+  return result;
+}
+
+string CSlackRTM::escape_from_slack(string message)
+{
+  string ret = message;
+
+  boost::replace_all(ret, "&lt;" , "<");
+  boost::replace_all(ret, "&gt;" , ">");
+  boost::replace_all(ret, "&amp;", "&");
+
+  return ret;
+}
+
 void *CSlackRTM::activity_thread(void *arg)
 {
-    CSlackRTM *rtm;
-    rtm = (CSlackRTM*) arg;
-    rtm->activity_thread();
-    return NULL;
+  CSlackRTM *rtm;
+  rtm = (CSlackRTM*) arg;
+  rtm->activity_thread();
+  return NULL;
 }
 
 void CSlackRTM::activity_thread()

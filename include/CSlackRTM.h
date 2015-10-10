@@ -3,7 +3,10 @@
 #include "SlackRTMCallbackInterface.h"
 
 #include <string>
-  
+#include <algorithm>
+#include <utf8.h>
+#include <boost/algorithm/string/replace.hpp>
+
 class CSlackRTM
 {
 
@@ -24,7 +27,9 @@ private:
   std::string json_encode_slack_ping();
   int get_next_msg_id();
   int connect_to_slack();
-
+  std::string escape_for_slack(std::string message);
+  std::string escape_from_slack(std::string message);
+  
   time_t _last_msg_received;
   std::string _api_url;
   std::string _token;
