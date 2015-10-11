@@ -1,7 +1,7 @@
 CPPFLAGS=-g -pthread 
 LDFLAGS=-g -lpthread -lcurl
 
-INC=-I./libwebsockets/build/lib/Headers -I./include
+INC=-I./libwebsockets/build/lib/Headers -I./libwebsockets/lib -I./libwebsockets/build -I./include
 LIB=-L./libwebsockets/build/lib
 
 BUILD_DIR = build/
