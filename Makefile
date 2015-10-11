@@ -12,7 +12,9 @@ CC_OUT = -o $(BUILD_DIR)$(notdir $@)
 
 OBJS = $(BUILD_DIR)CSlackRTM.o $(BUILD_DIR)CWebSocket.o $(BUILD_DIR)CSlackWS.o $(BUILD_DIR)CSlackWeb.o
 
-all: SlackRtmTest lib
+.PHONY: clean examples
+
+all: lib examples
 
 lib: $(LIB_DIR)libslackrtm.a
 
@@ -28,9 +30,6 @@ $(BUILD_DIR)CSlackWS.o: $(SRC_DIR)CSlackWS.cpp $(HEAD_DIR)CSlackWS.h
 $(BUILD_DIR)CSlackRTM.o: $(SRC_DIR)CSlackRTM.cpp $(HEAD_DIR)CSlackRTM.h
 	g++ $(INC) -Wall -c $(SRC_DIR)CSlackRTM.cpp $(CC_OUT)
 
-$(BUILD_DIR)main.o: $(SRC_DIR)main.cpp libwebsockets/build/lib/libwebsockets.a
-	g++ $(INC) -Wall -c $(SRC_DIR)main.cpp $(CC_OUT)
-
 $(LIB_DIR)slackrtm.a: $(OBJS)
 	ar -cq $(LIB_DIR)slackrtm.a $(OBJS)
 
@@ -42,10 +41,11 @@ $(LIB_DIR)libslackrtm.a: $(LIB_DIR)slackrtm.a libwebsockets/build/lib/libwebsock
 	cp ./libwebsockets/build/lib/libwebsockets.a $(LIB_DIR)libslackrtm.a
 	ar r $(LIB_DIR)libslackrtm.a $(OBJS)
 
-SlackRtmTest: $(BUILD_DIR)main.o $(LIB_DIR)libslackrtm.a
-	g++ $(LDFLAGS) $(LIB) -lrt -lpthread -lssl -lcrypto -lz -ljson -o SlackRtmTest $(BUILD_DIR)main.o $(LIB_DIR)libslackrtm.a
+examples: $(LIB_DIR)libslackrtm.a
+	cd examples/minimal ; $(MAKE)
 
 clean:
 	rm -f build/*.o
 	rm -f SlackRtmTest
 	rm -f lib/*.a
+	cd examples/minimal ; make clean

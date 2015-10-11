@@ -1,10 +1,8 @@
-#include <stdio.h>
 #include <string>
-#include <cerrno>
 #include <iostream>
 
-#include "SlackRTMCallbackInterface.h"
 #include "CSlackRTM.h"
+
 
 using namespace std;
 
@@ -28,12 +26,10 @@ public:
 
   void start()
   {
-
     _rtm->go();
     sleep(2);
     _rtm->send("general", "test message");
     sleep(1000);
-
   }
 
   int cbi_got_slack_message(string channel, string username, string message)
@@ -53,13 +49,20 @@ public:
 };
 
 
-int main()
+int main(int argc, char *argv[])
 {
-  string token = "xoxb-11832276226-HiO5bl2qSGxdqAhqM5tca90E";
   string apiurl = "https://slack.com/api/";
+  
+  if (argc != 2)
+  {
+    cout << "Invalid number of parameters supplied!\n";
+    cout << "Expected one parameter: token\n\n";
+    return -1;
+  }
+
+  string token(argv[1]);
 
   SlackTest test(token, apiurl);
-
   test.start();
 
   return 0;

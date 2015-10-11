@@ -1,6 +1,7 @@
 #include <string>
 #include <sstream>
 #include <pthread.h>
+#include <queue>
 #include "libwebsockets.h"
 #include "SlackRTMCallbackInterface.h"
  
@@ -36,8 +37,10 @@ class CWebSocket
     struct libwebsocket_protocols protocols[2];
     char *store_string(std::string s);
     void dbg(std::string msg);
+    int ws_send_pending();
     SlackRTMCallbackInterface *_cb;
     
+    std::queue<std::string> _ws_queue;
     char *protocol;
     char *path;
     char *address;

@@ -49,6 +49,8 @@ CSlackRTM::CSlackRTM(string token, string api_url, SlackRTMCallbackInterface *cb
   
   _sweb = NULL;
   _sws  = NULL;
+  
+  dbg("Created");
 }
 
 CSlackRTM::~CSlackRTM()

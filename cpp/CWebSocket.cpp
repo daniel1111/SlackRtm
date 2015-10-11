@@ -111,6 +111,7 @@ int CWebSocket::set_protocol(string protocol)
   
   protocols[0].name = store_string(protocol);
   protocols[0].callback = ws_static_callback;
+//protocols[0].rx_buffer_size = (1024*16); // 16k buffer
   CWebSocket::protocol = store_string(protocol);
   return 0; 
 }
@@ -163,35 +164,29 @@ int CWebSocket::ws_open()
 
   dbg("Websocket connection opened");
   status = CONNECTED;
-
+  
   return 0;
 }
 
 
 int CWebSocket::ws_send(string s)
 {
-  unsigned char *buf;
-  
   dbg("> " + s);
   if (status != CONNECTED)
   {
     dbg("Not connected!");
     return -1;
   }
-  
-  buf = (unsigned char*)malloc(LWS_SEND_BUFFER_PRE_PADDING + s.length() + 1 + LWS_SEND_BUFFER_POST_PADDING);
-  if (buf==NULL)
-    return -1;
-  
-  strcpy((char*)(buf+LWS_SEND_BUFFER_PRE_PADDING), s.c_str());
-  
-  pthread_mutex_lock(&ws_mutex);  
-  libwebsocket_write(ws, buf+LWS_SEND_BUFFER_PRE_PADDING, s.length()+1, LWS_WRITE_TEXT);
+
+  // Queue the message for transmission by the service routine
+  pthread_mutex_lock(&ws_mutex);
+  _ws_queue.push(s);
+
+  // request a callback to transmit it
+  libwebsocket_callback_on_writable(context, ws);
   pthread_mutex_unlock(&ws_mutex);
-  
-  free(buf);
+
   return 0;
-  
 }
 
 
@@ -223,7 +218,7 @@ void CWebSocket::service_thread()
   
     status = NOT_CONNECTED;
     dbg("Websocket disconnected!");
-    if (context != NULL)
+    if (context != NULL)  
     {
       libwebsocket_context_destroy(context);
       context = NULL;
@@ -253,8 +248,8 @@ CWebSocket::~CWebSocket()
 
 int CWebSocket::ws_callback(struct libwebsocket_context *wsc, struct libwebsocket *wsi, enum libwebsocket_callback_reasons reason, void *in, size_t len)
 {
-// printf("ws_callback> reason=[%d], size=[%d] (%s)\n", reason, len, reason2text(reason).c_str());
 
+//  printf("ws_callback> reason=[%d], size=[%d] (%s)\n", reason, len, reason2text(reason).c_str());
 
   switch (reason) 
   {
@@ -269,6 +264,14 @@ int CWebSocket::ws_callback(struct libwebsocket_context *wsc, struct libwebsocke
       dbg("< " + (string)((char*)in));
       got_data((char*)in);
       break;
+      
+    case LWS_CALLBACK_CLIENT_ESTABLISHED:
+      libwebsocket_callback_on_writable(wsc, wsi);
+      break;
+      
+    case LWS_CALLBACK_CLIENT_WRITEABLE:
+      ws_send_pending();
+      break;
 
     default:
       break;
@@ -277,10 +280,39 @@ int CWebSocket::ws_callback(struct libwebsocket_context *wsc, struct libwebsocke
   return 0;
 }
 
+int CWebSocket::ws_send_pending()
+{
+  pthread_mutex_lock(&ws_mutex);
+  if (_ws_queue.size() <= 0)
+  {
+    pthread_mutex_unlock(&ws_mutex);
+    return 0;
+  }
+
+  string s = _ws_queue.front();
+
+  unsigned char *buf = (unsigned char*)malloc(LWS_SEND_BUFFER_PRE_PADDING + s.length() + 1 + LWS_SEND_BUFFER_POST_PADDING);
+
+  if (buf==NULL)
+    return -1;
+
+  strcpy((char*)(buf+LWS_SEND_BUFFER_PRE_PADDING), s.c_str());
+
+  libwebsocket_write(ws, buf+LWS_SEND_BUFFER_PRE_PADDING, s.length()+1, LWS_WRITE_TEXT);
+
+  free(buf);
+  _ws_queue.pop();
+
+  // If there's still stuff left to be sent, ask for a callback when we can send it.
+  if (_ws_queue.size() > 0)
+    libwebsocket_callback_on_writable(context, ws);
+
+  pthread_mutex_unlock(&ws_mutex);
+}
 
 string CWebSocket::reason2text(int code)
 {
-  string reason = "<UNKNWON>";
+  string reason = "<UNKNOWN>";
   switch (code)
   {
     case   LWS_CALLBACK_ESTABLISHED:  reason = "LWS_CALLBACK_ESTABLISHED";  break;
@@ -326,7 +358,6 @@ string CWebSocket::reason2text(int code)
 }
   
   
-  
 static int ws_static_callback(struct libwebsocket_context *wsc, struct libwebsocket *wsi, 
   enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len)
 {
@@ -347,7 +378,3 @@ string itos(int n)
   out << n;
   return out.str();
 }
-
-
-  
-
