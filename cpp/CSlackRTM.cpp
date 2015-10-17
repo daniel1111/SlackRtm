@@ -58,21 +58,23 @@ CSlackRTM::~CSlackRTM()
   // Signal act_thread to stop
   if (_act_thread)
   {
+    dbg("Signal activity act_thread to stop");
     pthread_mutex_lock(&_act_mutex);
     _act_thread_msg = ACT_MSG_EXIT;
     pthread_cond_signal(&_act_condition_var);
     pthread_mutex_unlock(&_act_mutex);
-    
+
     dbg("Join act_thread");
     pthread_join(_act_thread, NULL);
   }
 
-  
   if (_sws != NULL)
     delete _sws;
   
   if (_sweb != NULL)
     delete _sweb;
+
+  dbg("Done.");
 }
 
 void CSlackRTM::dbg(string msg)
@@ -158,14 +160,25 @@ int CSlackRTM::slack_callback(string message)
     dbg("slack_callback> _sweb is NULL!");
     return -1;
   }
-  
+
   string type = CSlackWeb::extract_value(message, "type");
 
+  pthread_mutex_lock(&_act_mutex); 
   _last_msg_received = time(NULL);
+  pthread_mutex_unlock(&_act_mutex); 
   
   // For now, only really interested in the "message" ("A message was sent to a channel") event
   if (type == "message")
   {
+    // For now, ignore replies to our messages from slack
+    string reply_to = CSlackWeb::extract_value(message, "reply_to");
+
+    if (reply_to.length() > 0)
+    {
+      dbg("Ignoring reply messge");
+      return 0;
+    }
+
     string user_id   = CSlackWeb::extract_value(message, "user");
     string user_name = _sweb->get_username_from_id(user_id);
 
@@ -177,6 +190,99 @@ int CSlackRTM::slack_callback(string message)
     // Pass the message on to the callback we were passed on construction
     _cb->cbi_got_slack_message(channel_name, user_name, escape_from_slack(text));
   }
+  
+  // New user has joined the slack team. Need to add their user id / name mapping to the cache
+  else if (type == "team_join")
+  {
+    string user_name="";
+    string user_id="";
+    if (!extract_user_details(message, user_name, user_id))
+    {
+      // add to cache
+      dbg("New user joined the team: id=[" + user_id + "], name=[" + user_name + "]");
+      if (_sweb != NULL)
+        _sweb->add_user(user_id, user_name);
+    }
+  }
+
+  // Channel created - add channel id -> channel mappping
+  else if (type == "channel_created")
+  {
+    // extract channel name / ID from message
+    string channel_name="";
+    string channel_id="";
+    if (!extract_channel_details(message, channel_name, channel_id))
+    {
+      // add to cache
+      dbg("Channel created: id=[" + channel_id + "], name=[" + channel_name + "]");
+      if (_sweb != NULL)
+        _sweb->add_channel(channel_id, channel_name);
+    }
+  }
+
+  return 0;
+}
+
+int CSlackRTM::extract_channel_details(string message, string &channel_name, string &channel_id)
+{
+  json_object *jobj = json_tokener_parse(message.c_str());
+  if (jobj == NULL)
+  {
+    dbg("extract_channel_details> json_tokener_parse failed. JSON data: [" + message + "]");
+    return -1;
+  }
+
+  json_object *obj_param = json_object_object_get(jobj, "channel");
+  if (obj_param == NULL)
+  {
+    dbg("extract_channel_details> json_object_object_get failed. JSON data: [" + message + "]");
+    json_object_put(jobj);
+    return -1;
+  }
+
+  json_object *channel_obj_name = json_object_object_get(obj_param, "name");
+  json_object *channel_obj_id   = json_object_object_get(obj_param, "id");
+
+  if (channel_obj_name != NULL)
+    channel_name = json_object_get_string(channel_obj_name);
+
+  if (channel_obj_id   != NULL)
+    channel_id   = json_object_get_string(channel_obj_id);
+
+  json_object_put(obj_param);
+  json_object_put(jobj);
+
+  return 0;
+}
+
+int CSlackRTM::extract_user_details(string message, string &user_name, string &user_id)
+{
+  json_object *jobj = json_tokener_parse(message.c_str());
+  if (jobj == NULL)
+  {
+    dbg("extract_user_details> json_tokener_parse failed. JSON data: [" + message + "]");
+    return -1;
+  }
+
+  json_object *obj_param = json_object_object_get(jobj, "user");
+  if (obj_param == NULL)
+  {
+    dbg("extract_user_details> json_object_object_get failed. JSON data: [" + message + "]");
+    json_object_put(jobj);
+    return -1;
+  }
+
+  json_object *user_obj_name = json_object_object_get(obj_param, "name");
+  json_object *user_obj_id   = json_object_object_get(obj_param, "id");
+
+  if (user_obj_name != NULL)
+    user_name = json_object_get_string(user_obj_name);
+
+  if (user_obj_id   != NULL)
+    user_id   = json_object_get_string(user_obj_id);
+
+  json_object_put(obj_param);
+  json_object_put(jobj);
 
   return 0;
 }
@@ -407,7 +513,7 @@ void CSlackRTM::activity_thread()
       } else
       {
         dbg("activity_thread> _sws is NULL, can't send ping"); 
-        // still mark ping as sent, so we timout out the connection in the hope of recovering from this
+        // still mark ping as sent, so we timout the connection in the hope of recovering from this
       }
       ping_sent = true;
     }

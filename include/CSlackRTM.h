@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <utf8.h>
 #include <boost/algorithm/string/replace.hpp>
+#include <json/json.h>       // libjson0-dev
 
 class CSlackRTM
 {
@@ -29,6 +30,8 @@ private:
   int connect_to_slack();
   std::string escape_for_slack(std::string message);
   std::string escape_from_slack(std::string message);
+  int extract_channel_details(std::string message, std::string &channel_name, std::string &channel_id);
+  int extract_user_details(std::string message, std::string &user_name, std::string &user_id);
   
   time_t _last_msg_received;
   std::string _api_url;
@@ -51,7 +54,3 @@ private:
   act_msg _act_thread_msg;
   
 };
-
-
-
- 

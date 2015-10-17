@@ -329,3 +329,15 @@ int CSlackWeb::extract_channels(string json_in)
 
   return 0;
 }
+
+int CSlackWeb::add_channel(string channel_id, string channel_name)
+{
+  _channels[channel_id] = channel_name;
+  return 0;
+}
+
+int CSlackWeb::add_user(string user_id, string user_name)
+{
+  _users[user_id] = user_name;
+  return 0;
+}
