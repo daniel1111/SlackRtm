@@ -232,21 +232,20 @@ int CSlackRTM::extract_channel_details(string message, string &channel_name, str
     return -1;
   }
 
-  json_object *obj_param = json_object_object_get(jobj, "channel");
-  if (obj_param == NULL)
+  json_object *obj_param = NULL;
+  if (!json_object_object_get_ex(jobj, "channel", &obj_param))
   {
-    dbg("extract_channel_details> json_object_object_get failed. JSON data: [" + message + "]");
+    dbg("extract_channel_details> json_object_object_get_ex failed. JSON data: [" + message + "]");
     json_object_put(jobj);
     return -1;
   }
 
-  json_object *channel_obj_name = json_object_object_get(obj_param, "name");
-  json_object *channel_obj_id   = json_object_object_get(obj_param, "id");
-
-  if (channel_obj_name != NULL)
+  json_object *channel_obj_name = NULL;
+  if (json_object_object_get_ex(obj_param, "name", &channel_obj_name))
     channel_name = json_object_get_string(channel_obj_name);
 
-  if (channel_obj_id   != NULL)
+  json_object *channel_obj_id   = NULL;
+  if (json_object_object_get_ex(obj_param, "id", &channel_obj_id))
     channel_id   = json_object_get_string(channel_obj_id);
 
   json_object_put(obj_param);
@@ -264,21 +263,21 @@ int CSlackRTM::extract_user_details(string message, string &user_name, string &u
     return -1;
   }
 
-  json_object *obj_param = json_object_object_get(jobj, "user");
-  if (obj_param == NULL)
+  json_object *obj_param = NULL;
+  if (!json_object_object_get_ex(jobj, "user", &obj_param))
   {
-    dbg("extract_user_details> json_object_object_get failed. JSON data: [" + message + "]");
+    dbg("extract_user_details> json_object_object_get_ex failed. JSON data: [" + message + "]");
     json_object_put(jobj);
     return -1;
   }
 
-  json_object *user_obj_name = json_object_object_get(obj_param, "name");
-  json_object *user_obj_id   = json_object_object_get(obj_param, "id");
+  json_object *user_obj_name = NULL;
+  json_object *user_obj_id   = NULL;
 
-  if (user_obj_name != NULL)
+  if (json_object_object_get_ex(obj_param, "name", &user_obj_name))
     user_name = json_object_get_string(user_obj_name);
 
-  if (user_obj_id   != NULL)
+  if (json_object_object_get_ex(obj_param, "id", &user_obj_id))
     user_id   = json_object_get_string(user_obj_id);
 
   json_object_put(obj_param);
@@ -506,7 +505,7 @@ void CSlackRTM::activity_thread()
     else
     {
       // Nothing received within the timeout period. This is probably normal - i.e. just a case of no-one saying anything.
-      // Send a ping to check the connection is alive (server should resond near-instantly)
+      // Send a ping to check the connection is alive (server should respond near-instantly)
       if (_sws != NULL)
       {
         _sws->ws_send(json_encode_slack_ping());

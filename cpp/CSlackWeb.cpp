@@ -161,10 +161,9 @@ string CSlackWeb::extract_value(string json_in, string param)
     return "";
   }
 
-  json_object *obj_param = json_object_object_get(jobj, param.c_str());
-  if (obj_param == NULL)
+  json_object *obj_param = NULL;
+  if (!json_object_object_get_ex(jobj, param.c_str(), &obj_param))
   {
-    // dbg("extract_value> json_object_object_get failed. JSON data: [" + json_in + "]");
     json_object_put(jobj);
     return "";
   }
@@ -198,10 +197,10 @@ int CSlackWeb::extract_users(string json_in)
     return -1;
   }
 
-  json_object *obj_param = json_object_object_get(jobj, "users");
-  if (obj_param == NULL)
+  json_object *obj_param = NULL;
+  if (!json_object_object_get_ex(jobj, "users", &obj_param))
   {
-    dbg("extract_users> json_object_object_get failed. JSON data: [" + json_in + "]");
+    dbg("extract_users> json_object_object_get_ex failed. JSON data: [" + json_in + "]");
     json_object_put(jobj);
     return -1;
   }
@@ -229,14 +228,14 @@ int CSlackWeb::extract_users(string json_in)
     json_object *user_obj = json_object_array_get_idx(jarray, idx); 
 
     // get id
-    json_object *user_obj_id = json_object_object_get(user_obj, "id");
-    if (user_obj_id == NULL)
+    json_object *user_obj_id = NULL;
+    if (!json_object_object_get_ex(user_obj, "id", &user_obj_id))
       continue;
     user_obj_id_str = json_object_get_string(user_obj_id);
 
     // get name
-    json_object *user_obj_name = json_object_object_get(user_obj, "name");
-    if (user_obj_name == NULL)
+    json_object *user_obj_name = NULL;
+    if (!json_object_object_get_ex(user_obj, "name", &user_obj_name))
       continue;
     user_obj_name_str = json_object_get_string(user_obj_name);
 
@@ -270,10 +269,10 @@ int CSlackWeb::extract_channels(string json_in)
     return -1;
   }
 
-  json_object *obj_param = json_object_object_get(jobj, "channels");
-  if (obj_param == NULL)
+  json_object *obj_param = NULL;
+  if (!json_object_object_get_ex(jobj, "channels", &obj_param))
   {
-    dbg("extract_channels> json_object_object_get failed. JSON data: [" + json_in + "]");
+    dbg("extract_channels> json_object_object_get_ex failed. JSON data: [" + json_in + "]");
     json_object_put(jobj);
     return -1;
   }
@@ -300,14 +299,14 @@ int CSlackWeb::extract_channels(string json_in)
     json_object *channel_obj = json_object_array_get_idx(jarray, idx); 
 
     // get id
-    json_object *channel_obj_id = json_object_object_get(channel_obj, "id");
-    if (channel_obj_id == NULL)
+    json_object *channel_obj_id = NULL;
+    if (!json_object_object_get_ex(channel_obj, "id", &channel_obj_id))
       continue;
     channel_obj_id_str = json_object_get_string(channel_obj_id);
 
     // get name
-    json_object *channel_obj_name = json_object_object_get(channel_obj, "name");
-    if (channel_obj_name == NULL)
+    json_object *channel_obj_name = NULL;
+    if (!json_object_object_get_ex(channel_obj, "name", &channel_obj_name))
       continue;
     channel_obj_name_str = json_object_get_string(channel_obj_name);
 

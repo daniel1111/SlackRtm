@@ -35,7 +35,7 @@ $(LIB_DIR)slackrtm.a: $(OBJS)
 
 libwebsockets/build/lib/libwebsockets.a: 
 	mkdir -p libwebsockets/build
-	cd libwebsockets/build ; cmake .. ; make
+	cd libwebsockets/build ; cmake .. ; $(MAKE)
 	
 $(LIB_DIR)libslackrtm.a: $(LIB_DIR)slackrtm.a libwebsockets/build/lib/libwebsockets.a 
 	cp ./libwebsockets/build/lib/libwebsockets.a $(LIB_DIR)libslackrtm.a
@@ -43,9 +43,11 @@ $(LIB_DIR)libslackrtm.a: $(LIB_DIR)slackrtm.a libwebsockets/build/lib/libwebsock
 
 examples: $(LIB_DIR)libslackrtm.a
 	cd examples/minimal ; $(MAKE)
+	cd examples/mqtt ; $(MAKE)
 
 clean:
 	rm -f build/*.o
 	rm -f SlackRtmTest
 	rm -f lib/*.a
-	cd examples/minimal ; make clean
+	cd examples/minimal ; $(MAKE) clean
+	cd examples/mqtt ; $(MAKE) clean

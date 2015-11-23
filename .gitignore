@@ -1,0 +1,7 @@
+*.o
+*~
+*.kate-swp
+.vagrant
+
+examples/minimal/SlackMinimal
+examples/mqtt/SlackMqtt
