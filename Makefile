@@ -45,6 +45,9 @@ examples: $(LIB_DIR)libslackrtm.a
 	cd examples/minimal ; $(MAKE)
 	cd examples/mqtt ; $(MAKE)
 
+install: examples
+	cp examples/mqtt/SlackMqtt $(DESTDIR)/usr/bin
+
 clean:
 	rm -f build/*.o
 	rm -f SlackRtmTest
