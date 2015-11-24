@@ -5,6 +5,7 @@
 #include <cerrno>
 #include <json/json.h>       // libjson0-dev
 #include <curl/curl.h>       // libcurl4-gnutls-dev
+#include <syslog.h>
 #include "SlackRTMCallbackInterface.h"
 
 class CSlackWeb
@@ -27,7 +28,7 @@ private:
 
   int extract_users(std::string json_in);
   int extract_channels(std::string json_in);
-  void dbg(std::string msg);
+  void dbg(int dbglvl, std::string msg);
 
   char _errorBuffer[CURL_ERROR_SIZE];
   SlackRTMCallbackInterface *_cb;

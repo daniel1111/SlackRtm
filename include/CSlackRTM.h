@@ -7,6 +7,7 @@
 #include <utf8.h>            // libutfcpp-dev
 #include <boost/algorithm/string/replace.hpp>
 #include <json/json.h>       // libjson0-dev
+#include <syslog.h>
 
 class CSlackRTM
 {
@@ -20,7 +21,7 @@ public:
 
 private:
   int split_url(std::string url, std::string &server, std::string &path);
-  void dbg(std::string msg);
+  void dbg(int dbglvl, std::string msg);
   
   static int s_slack_callback(std::string message, void *obj);
   int slack_callback(std::string message);

@@ -34,7 +34,7 @@ public:
 
   int cbi_got_slack_message(string channel, string username, string message)
   {
-    cbi_debug_message("cbi_got_slack_message> #" + channel + "/<" + username + "> " + message);
+    cbi_debug_message(LOG_DEBUG, "cbi_got_slack_message> #" + channel + "/<" + username + "> " + message);
 
     if (message == "ping")
       _rtm->send(channel, "PONG!");
@@ -42,7 +42,7 @@ public:
     return 0;
   }
   
-  void cbi_debug_message(string msg)
+  void cbi_debug_message(int log_level, string msg)
   {
     cout << "[" + msg + "]" << endl;
   }

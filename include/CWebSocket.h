@@ -2,6 +2,7 @@
 #include <sstream>
 #include <pthread.h>
 #include <queue>
+#include <syslog.h>
 #include "libwebsockets.h"
 #include "SlackRTMCallbackInterface.h"
  
@@ -26,6 +27,7 @@ class CWebSocket
     int ws_callback(struct libwebsocket_context *wsc, struct libwebsocket *wsi, enum libwebsocket_callback_reasons reason, void *in, size_t len);
     virtual int got_data(std::string data) = 0;
     static void *service_thread(void *arg);
+    static void s_web_socket_debug(int level, const char *line);
     
   protected:
     enum ws_status {NOT_CONNECTED, CONNECTED};
@@ -36,7 +38,7 @@ class CWebSocket
     struct libwebsocket_context *context;
     struct libwebsocket_protocols protocols[2];
     char *store_string(std::string s);
-    void dbg(std::string msg);
+    void dbg(int dbglvl, std::string msg);
     int ws_send_pending();
     SlackRTMCallbackInterface *_cb;
     

@@ -50,7 +50,7 @@ CSlackRTM::CSlackRTM(string token, string api_url, SlackRTMCallbackInterface *cb
   _sweb = NULL;
   _sws  = NULL;
   
-  dbg("Created");
+  dbg(LOG_DEBUG, "Created");
 }
 
 CSlackRTM::~CSlackRTM()
@@ -58,13 +58,13 @@ CSlackRTM::~CSlackRTM()
   // Signal act_thread to stop
   if (_act_thread)
   {
-    dbg("Signal activity act_thread to stop");
+    dbg(LOG_DEBUG, "Signal activity act_thread to stop");
     pthread_mutex_lock(&_act_mutex);
     _act_thread_msg = ACT_MSG_EXIT;
     pthread_cond_signal(&_act_condition_var);
     pthread_mutex_unlock(&_act_mutex);
 
-    dbg("Join act_thread");
+    dbg(LOG_DEBUG, "Join act_thread");
     pthread_join(_act_thread, NULL);
   }
 
@@ -74,12 +74,12 @@ CSlackRTM::~CSlackRTM()
   if (_sweb != NULL)
     delete _sweb;
 
-  dbg("Done.");
+  dbg(LOG_DEBUG, "Done.");
 }
 
-void CSlackRTM::dbg(string msg)
+void CSlackRTM::dbg(int dbglvl, string msg)
 {
-  _cb->cbi_debug_message("CSlackRTM::" + msg);
+  _cb->cbi_debug_message(dbglvl, "CSlackRTM::" + msg);
 }
 
 void CSlackRTM::go()
@@ -106,7 +106,7 @@ int CSlackRTM::connect_to_slack()
   URL = _sweb->get_ws_url();
   if (URL == "")
   {
-    dbg("connect_to_slack(): Failed to get web service URL");
+    dbg(LOG_ERR, "connect_to_slack(): Failed to get web service URL");
     return -1;
   }
 
@@ -157,7 +157,7 @@ int CSlackRTM::slack_callback(string message)
 {
   if (_sweb == NULL)
   {
-    dbg("slack_callback> _sweb is NULL!");
+    dbg(LOG_ERR, "slack_callback> _sweb is NULL!");
     return -1;
   }
 
@@ -175,7 +175,7 @@ int CSlackRTM::slack_callback(string message)
 
     if (reply_to.length() > 0)
     {
-      dbg("Ignoring reply messge");
+      dbg(LOG_DEBUG, "Ignoring reply messge");
       return 0;
     }
 
@@ -199,7 +199,7 @@ int CSlackRTM::slack_callback(string message)
     if (!extract_user_details(message, user_name, user_id))
     {
       // add to cache
-      dbg("New user joined the team: id=[" + user_id + "], name=[" + user_name + "]");
+      dbg(LOG_INFO, "New user joined the team: id=[" + user_id + "], name=[" + user_name + "]");
       if (_sweb != NULL)
         _sweb->add_user(user_id, user_name);
     }
@@ -214,7 +214,7 @@ int CSlackRTM::slack_callback(string message)
     if (!extract_channel_details(message, channel_name, channel_id))
     {
       // add to cache
-      dbg("Channel created: id=[" + channel_id + "], name=[" + channel_name + "]");
+      dbg(LOG_INFO, "Channel created: id=[" + channel_id + "], name=[" + channel_name + "]");
       if (_sweb != NULL)
         _sweb->add_channel(channel_id, channel_name);
     }
@@ -228,14 +228,14 @@ int CSlackRTM::extract_channel_details(string message, string &channel_name, str
   json_object *jobj = json_tokener_parse(message.c_str());
   if (jobj == NULL)
   {
-    dbg("extract_channel_details> json_tokener_parse failed. JSON data: [" + message + "]");
+    dbg(LOG_ERR, "extract_channel_details> json_tokener_parse failed. JSON data: [" + message + "]");
     return -1;
   }
 
   json_object *obj_param = NULL;
   if (!json_object_object_get_ex(jobj, "channel", &obj_param))
   {
-    dbg("extract_channel_details> json_object_object_get_ex failed. JSON data: [" + message + "]");
+    dbg(LOG_ERR, "extract_channel_details> json_object_object_get_ex failed. JSON data: [" + message + "]");
     json_object_put(jobj);
     return -1;
   }
@@ -259,14 +259,14 @@ int CSlackRTM::extract_user_details(string message, string &user_name, string &u
   json_object *jobj = json_tokener_parse(message.c_str());
   if (jobj == NULL)
   {
-    dbg("extract_user_details> json_tokener_parse failed. JSON data: [" + message + "]");
+    dbg(LOG_ERR, "extract_user_details> json_tokener_parse failed. JSON data: [" + message + "]");
     return -1;
   }
 
   json_object *obj_param = NULL;
   if (!json_object_object_get_ex(jobj, "user", &obj_param))
   {
-    dbg("extract_user_details> json_object_object_get_ex failed. JSON data: [" + message + "]");
+    dbg(LOG_ERR, "extract_user_details> json_object_object_get_ex failed. JSON data: [" + message + "]");
     json_object_put(jobj);
     return -1;
   }
@@ -290,7 +290,7 @@ string CSlackRTM::json_encode_slack_message(string channel_name, string text)
 {
   if (_sweb == NULL)
   {
-    dbg("json_encode_slack_message> _sweb is NULL!");
+    dbg(LOG_ERR, "json_encode_slack_message> _sweb is NULL!");
     return "";
   }
 
@@ -438,7 +438,7 @@ void CSlackRTM::activity_thread()
   char buf[30] = "";
   act_msg msg;
   bool ping_sent = false;
-  dbg("Entered activity_thread");
+  dbg(LOG_DEBUG, "Entered activity_thread");
 
   while (1)
   {
@@ -475,7 +475,7 @@ void CSlackRTM::activity_thread()
 
     if (msg == ACT_MSG_EXIT)
     {
-      dbg("exiting activity_thread");
+      dbg(LOG_DEBUG, "exiting activity_thread");
       return;
     }
     
@@ -490,7 +490,7 @@ void CSlackRTM::activity_thread()
     {
       // nothing's been received within the timeout period, a ping's been sent, and we've still not got anything back. 
       // Time to reconnect.
-      dbg("RECONNECT REQUIRED");
+      dbg(LOG_NOTICE, "RECONNECT REQUIRED");
       
       // Taredown connection, and start again
       if (_sws != NULL)
@@ -511,7 +511,7 @@ void CSlackRTM::activity_thread()
         _sws->ws_send(json_encode_slack_ping());
       } else
       {
-        dbg("activity_thread> _sws is NULL, can't send ping"); 
+        dbg(LOG_DEBUG, "activity_thread> _sws is NULL, can't send ping"); 
         // still mark ping as sent, so we timout the connection in the hope of recovering from this
       }
       ping_sent = true;

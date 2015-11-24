@@ -47,9 +47,9 @@ CSlackWeb::CSlackWeb(string ApiUrl, string token, SlackRTMCallbackInterface *cb)
   _cb = cb;
 }
 
-void CSlackWeb::dbg(string msg)
+void CSlackWeb::dbg(int dbglvl, string msg)
 {
-  _cb->cbi_debug_message("CSlackWeb::" + msg);
+  _cb->cbi_debug_message(dbglvl, "CSlackWeb::" + msg);
 }
 
 int CSlackWeb::init()
@@ -122,22 +122,22 @@ int CSlackWeb::slack_rtm_start(string &payload)
               + "&simple_latest=0" 
               + "&no_unreads=1";
 
-  dbg("slack_rtm_start> get fields: [" + get_fields + "]");
+  dbg(LOG_DEBUG, "slack_rtm_start> get fields: [" + get_fields + "]");
 
   string ApiUrl = _ApiUrl + "rtm.start?" + get_fields;
 
-  dbg("slack_rtm_start> Using URL: [" + ApiUrl + "]");
+  dbg(LOG_DEBUG, "slack_rtm_start> Using URL: [" + ApiUrl + "]");
   payload = "";
   curl_easy_setopt(curl, CURLOPT_URL, ApiUrl.c_str());
   res = curl_easy_perform(curl);
   if (res != CURLE_OK)
   {
-    dbg("slack_rtm_start> cURL perform failed: " + (string)_errorBuffer);
+    dbg(LOG_ERR, "slack_rtm_start> cURL perform failed: " + (string)_errorBuffer);
     curl_easy_cleanup(curl);
     return -1;
   } else
   {
-    dbg("slack_rtm_start> Got data");
+    dbg(LOG_DEBUG, "slack_rtm_start> Got data");
   }
 
 //dbg("Got: " + payload);
@@ -193,14 +193,14 @@ int CSlackWeb::extract_users(string json_in)
   json_object *jobj = json_tokener_parse(json_in.c_str());
   if (jobj == NULL)
   {
-    dbg("extract_users> json_tokener_parse failed. JSON data: [" + json_in + "]");
+    dbg(LOG_ERR, "extract_users> json_tokener_parse failed. JSON data: [" + json_in + "]");
     return -1;
   }
 
   json_object *obj_param = NULL;
   if (!json_object_object_get_ex(jobj, "users", &obj_param))
   {
-    dbg("extract_users> json_object_object_get_ex failed. JSON data: [" + json_in + "]");
+    dbg(LOG_ERR, "extract_users> json_object_object_get_ex failed. JSON data: [" + json_in + "]");
     json_object_put(jobj);
     return -1;
   }
@@ -209,7 +209,7 @@ int CSlackWeb::extract_users(string json_in)
   enum json_type type;
   if (json_object_get_type(obj_param) != json_type_array)
   {
-    dbg("extract_users> Error: \"users\" isn't an array");
+    dbg(LOG_ERR, "extract_users> Error: \"users\" isn't an array");
     json_object_put(jobj);
     return -1;
   }
@@ -239,14 +239,14 @@ int CSlackWeb::extract_users(string json_in)
       continue;
     user_obj_name_str = json_object_get_string(user_obj_name);
 
-    dbg("id: " + (string)user_obj_id_str + ", name: " + (string)user_obj_name_str);
+    dbg(LOG_DEBUG, "id: " + (string)user_obj_id_str + ", name: " + (string)user_obj_name_str);
     _users[(string)user_obj_id_str] = (string)user_obj_name_str;
   }
 
   const char *param_val = json_object_get_string(obj_param);
   if (param_val == NULL)
   {
-    dbg("extract_users> json_object_get_string failed. JSON data: [" + json_in + "]");
+    dbg(LOG_ERR, "extract_users> json_object_get_string failed. JSON data: [" + json_in + "]");
     json_object_put(obj_param);
     json_object_put(jobj);
     return -1;
@@ -265,14 +265,14 @@ int CSlackWeb::extract_channels(string json_in)
   json_object *jobj = json_tokener_parse(json_in.c_str());
   if (jobj == NULL)
   {
-    dbg("extract_channels> json_tokener_parse failed. JSON data: [" + json_in + "]");
+    dbg(LOG_ERR, "extract_channels> json_tokener_parse failed. JSON data: [" + json_in + "]");
     return -1;
   }
 
   json_object *obj_param = NULL;
   if (!json_object_object_get_ex(jobj, "channels", &obj_param))
   {
-    dbg("extract_channels> json_object_object_get_ex failed. JSON data: [" + json_in + "]");
+    dbg(LOG_ERR, "extract_channels> json_object_object_get_ex failed. JSON data: [" + json_in + "]");
     json_object_put(jobj);
     return -1;
   }
@@ -281,7 +281,7 @@ int CSlackWeb::extract_channels(string json_in)
   enum json_type type;
   if (json_object_get_type(obj_param) != json_type_array)
   {
-    dbg("extract_channels> Error: \"channels\" isn't an array");
+    dbg(LOG_ERR, "extract_channels> Error: \"channels\" isn't an array");
     json_object_put(jobj);
     return -1;
   }
@@ -310,14 +310,14 @@ int CSlackWeb::extract_channels(string json_in)
       continue;
     channel_obj_name_str = json_object_get_string(channel_obj_name);
 
-    dbg("id: " + (string)channel_obj_id_str + ", name: " + (string)channel_obj_name_str);
+    dbg(LOG_DEBUG, "id: " + (string)channel_obj_id_str + ", name: " + (string)channel_obj_name_str);
     _channels[(string)channel_obj_id_str] = (string)channel_obj_name_str;
   }
 
   const char *param_val = json_object_get_string(obj_param);
   if (param_val == NULL)
   {
-    dbg("extract_channels> json_object_get_string failed. JSON data: [" + json_in + "]");
+    dbg(LOG_ERR, "extract_channels> json_object_get_string failed. JSON data: [" + json_in + "]");
     json_object_put(obj_param);
     json_object_put(jobj);
     return -1;
