@@ -24,7 +24,7 @@ Note that the repository includes [libwebsockets](https://libwebsockets.org) as 
 2. After cloning, run "make" in the root
 
 ### Installation from binary package
-There is a binary package built for Debian Jessie/amd64 in the releases tab. Download this, then run:
+Download the binary package [slackmqtt_0.1-1_amd64.deb](https://github.com/daniel1111/daniel1111.github.io/raw/master/slackmqtt/slackmqtt_0.1-1_amd64.deb), then run:
 ```
 dpkg --install slackmqtt_0.1-1_amd64.deb
 apt-get install -f
