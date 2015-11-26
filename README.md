@@ -50,7 +50,7 @@ By default, SlackMqtt expects to find an MQTT broker running on localhost, port 
 Once running, messages in any of the Slack channels the bot is present in will be published to the MQTT topic "slack/rx/\<channel\>"; this can be seen by running something like "mosquitto_sub -t 'slack/rx/#'" in another terminal. The MQTT topic used can be changed by the "-r \<topic\>" parameter.
 
 Messages published to the MQTT topic "slack/tx/\<channel\>" will be sent to the Slack channel \<channel\>, provided that the bot is already present in that channel (i,e. has been invited in). This MQTT topic can be changed by the "-t \<topic\>" parameter.
-E.g. to send a message to #general, run "mosquitto_pub -r 'slack/tx/general' -m 'hello, world'".
+E.g. to send a message to #general, run "mosquitto_pub -t 'slack/tx/general' -m 'hello, world'".
 
 ### Glaring ommisions
 * No ability to send PMs
