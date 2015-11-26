@@ -18,7 +18,7 @@ SlackRtm is a very minimal c++ library for the Slack Real Time Messaging protoco
 
 ## slackmqtt
 ### Installation from Source
-Note that the repository includes [libwebsockets](https://libwebsockets.org) as a sub-module, so when cloning the repository, run "git clone --recursive <URL>". Alternatively, to download the submodule after cloning, run "git submodule update --init --recursive".
+Note that the repository includes [libwebsockets](https://libwebsockets.org) as a sub-module, so when cloning the repository, run "git clone --recursive \<URL\>". Alternatively, to download the submodule after cloning, run "git submodule update --init --recursive".
 
 1. Install the required packages: "apt-get install cmake g++ libjson0-dev libcurl4-gnutls-dev libutfcpp-dev libboost-dev libmosquittopp-dev libmosquitto-dev"
 2. After cloning, run "make" in the root
@@ -45,11 +45,11 @@ or
 /usr/bin/SlackMqtt -k "<token>"
 ```
 
-By default, SlackMqtt expects to find an MQTT broker running on localhost, port 1883; this can be overridden by passing the "-p <port>" and/or "-h <host>" parameters.
+By default, SlackMqtt expects to find an MQTT broker running on localhost, port 1883; this can be overridden by passing the "-p \<port\>" and/or "-h \<host\>" parameters.
 
-Once running, messages in any of the Slack channels the bot is present in will be published to the MQTT topic "slack/rx/<channel>"; this can be seen by running something like "mosquitto_sub -t 'slack/rx/#'" in another terminal. The MQTT topic used can be changed by the "-r <topic>" parameter.
+Once running, messages in any of the Slack channels the bot is present in will be published to the MQTT topic "slack/rx/\<channel\>"; this can be seen by running something like "mosquitto_sub -t 'slack/rx/#'" in another terminal. The MQTT topic used can be changed by the "-r \<topic\>" parameter.
 
-Messages published to the MQTT topic "slack/tx/<channel>" will be sent to the Slack channel <channel>, provided that the bot is already present in that channel (i,e. has been invited in). This MQTT topic can be changed by the "-t <topic>" parameter.
+Messages published to the MQTT topic "slack/tx/\<channel\>" will be sent to the Slack channel \<channel\>, provided that the bot is already present in that channel (i,e. has been invited in). This MQTT topic can be changed by the "-t \<topic\>" parameter.
 E.g. to send a message to #general, run "mosquitto_pub -r 'slack/tx/general' -m 'hello, world'".
 
 ### Glaring ommisions
