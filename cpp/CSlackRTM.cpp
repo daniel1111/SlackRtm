@@ -136,7 +136,39 @@ int CSlackRTM::send(string channel, string message)
     
     message = escape_for_slack(message);
     
-    string json_message = json_encode_slack_message(channel, message);
+    string channel_id = _sweb->get_id_from_channel(channel);
+    string json_message = json_encode_slack_message(channel_id, message);
+
+    _sws->ws_send(json_message);
+    return 0;
+  }
+  else
+    return -1;
+}
+
+int CSlackRTM::send_dm(std::string username, std::string message)
+/* Send a direct message to <username> */
+{
+  
+  if (_sws != NULL)
+  {
+    message = escape_for_slack(message);
+
+    // get user id
+    string user_id = _sweb->get_id_from_username(username);
+    if (user_id == "")
+      return -1;
+
+    // Lookup DM channel for that user
+    string channel_id = _sweb->get_id_from_channel(user_id);
+    if (channel_id == "")
+    {
+      // We don't know the DM channel ID for the user (probably not DM'ed them before). So use the web API
+      // to request one. It will be created for us, if required, otherwise the existing one will be returned.
+      _sweb->slack_im_open(user_id, channel_id);
+    }
+
+    string json_message = json_encode_slack_message(channel_id, message);
 
     _sws->ws_send(json_message);
     return 0;
@@ -183,7 +215,13 @@ int CSlackRTM::slack_callback(string message)
     string user_name = _sweb->get_username_from_id(user_id);
 
     string channel_id   = CSlackWeb::extract_value(message, "channel");
-    string channel_name = _sweb->get_channel_from_id(channel_id);
+
+    // if the first character of the channel name is "D", then it was direct message
+    string channel_name;
+    if (channel_id.substr(0,1) == "D")
+      channel_name = ""; // DM, set channel name to blank
+    else
+      channel_name = _sweb->get_channel_from_id(channel_id);
 
     string text = CSlackWeb::extract_value(message, "text");
 
@@ -286,7 +324,7 @@ int CSlackRTM::extract_user_details(string message, string &user_name, string &u
   return 0;
 }
 
-string CSlackRTM::json_encode_slack_message(string channel_name, string text)
+string CSlackRTM::json_encode_slack_message(string channel_id, string text)
 {
   if (_sweb == NULL)
   {
@@ -295,7 +333,6 @@ string CSlackRTM::json_encode_slack_message(string channel_name, string text)
   }
 
   int    msg_id     = get_next_msg_id();
-  string channel_id = _sweb->get_id_from_channel(channel_name);
 
   json_object *j_obj_root   = json_object_new_object();
   json_object *jstr_id      = json_object_new_int(msg_id);
@@ -310,7 +347,7 @@ string CSlackRTM::json_encode_slack_message(string channel_name, string text)
 
   string json_encoded = json_object_to_json_string(j_obj_root);
 
-  json_object_put(j_obj_root);  
+  json_object_put(j_obj_root);
 
   return json_encoded;
 }

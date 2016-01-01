@@ -18,6 +18,7 @@ public:
   ~CSlackRTM();
   void go();
   int send(std::string channel, std::string message);
+  int send_dm(std::string username, std::string message);
 
 private:
   int split_url(std::string url, std::string &server, std::string &path);
@@ -25,7 +26,7 @@ private:
   
   static int s_slack_callback(std::string message, void *obj);
   int slack_callback(std::string message);
-  std::string json_encode_slack_message(std::string channel_name, std::string text);
+  std::string json_encode_slack_message(std::string channel_id, std::string text);
   std::string json_encode_slack_ping();
   int get_next_msg_id();
   int connect_to_slack();

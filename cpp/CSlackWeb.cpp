@@ -66,7 +66,10 @@ int CSlackWeb::init()
   extract_users(payload);
 
   // populate _channels
-  extract_channels(payload);
+  _channels.clear();
+  extract_channels(payload, false); // get "normal" channels
+  
+  extract_channels(payload, true);  // get Direct Message channels
 
   return 0;
 }
@@ -91,6 +94,16 @@ string CSlackWeb::get_id_from_channel(string channel_name)
   for (map<string,string>::iterator ii=_channels.begin(); ii!=_channels.end(); ++ii)
   {
     if ((*ii).second == channel_name)
+      return (*ii).first;
+  }
+  return "";
+}
+
+string CSlackWeb::get_id_from_username(string username)
+{
+  for (map<string,string>::iterator ii=_users.begin(); ii!=_users.end(); ++ii)
+  {
+    if ((*ii).second == username)
       return (*ii).first;
   }
   return "";
@@ -140,7 +153,56 @@ int CSlackWeb::slack_rtm_start(string &payload)
     dbg(LOG_DEBUG, "slack_rtm_start> Got data");
   }
 
-//dbg("Got: " + payload);
+// dbg(LOG_DEBUG, "Got: " + payload);
+  curl_easy_cleanup(curl);
+
+  return 0;
+}
+
+int CSlackWeb::slack_im_open(string user_id, string &dm_channel)
+/* Open a DM channel to <user_id>. Either a new DM channel is created, or the existing one is returned */
+{
+  string get_fields;
+  string payload = "";
+  int res;
+  CURL *curl;
+
+  // Init cURL
+  curl = curl_easy_init();
+  curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1); // Get "*** longjmp causes uninitialized stack frame ***:" without this.
+  curl_easy_setopt(curl, CURLOPT_ERRORBUFFER  , _errorBuffer);
+  curl_easy_setopt(curl, CURLOPT_FAILONERROR  , 1); // On error (e.g. 404), we want curl_easy_perform to return an error
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, s_curl_write);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA    , &payload);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT      , 20L);   // wait a maximum of 20 seconds before giving up
+
+  get_fields =  "token="     + _token
+              + "&user="     + user_id;
+
+  dbg(LOG_DEBUG, "slack_im_open> get fields: [" + get_fields + "]");
+
+  string ApiUrl = _ApiUrl + "im.open?" + get_fields;
+
+  dbg(LOG_DEBUG, "slack_im_open> Using URL: [" + ApiUrl + "]");
+  payload = "";
+  curl_easy_setopt(curl, CURLOPT_URL, ApiUrl.c_str());
+  res = curl_easy_perform(curl);
+  if (res != CURLE_OK)
+  {
+    dbg(LOG_ERR, "slack_im_open> cURL perform failed: " + (string)_errorBuffer);
+    curl_easy_cleanup(curl);
+    return -1;
+  } else
+  {
+    dbg(LOG_DEBUG, "slack_im_open> Got data");
+  }
+
+  dbg(LOG_DEBUG, "slack_im_open> Got: " + payload);
+
+  string channel_data = extract_value(payload, "channel");
+  dm_channel          = extract_value(channel_data, "id");
+  add_channel(dm_channel, user_id);
+
   curl_easy_cleanup(curl);
 
   return 0;
@@ -258,10 +320,17 @@ int CSlackWeb::extract_users(string json_in)
   return 0;
 }
 
-int CSlackWeb::extract_channels(string json_in)
+int CSlackWeb::extract_channels(string json_in, bool dm)
 /*
  */
 {
+  string obj_name;
+  if (dm)
+    obj_name = "ims";
+  else
+    obj_name = "channels";
+  
+  
   json_object *jobj = json_tokener_parse(json_in.c_str());
   if (jobj == NULL)
   {
@@ -270,9 +339,9 @@ int CSlackWeb::extract_channels(string json_in)
   }
 
   json_object *obj_param = NULL;
-  if (!json_object_object_get_ex(jobj, "channels", &obj_param))
+  if (!json_object_object_get_ex(jobj, obj_name.c_str(), &obj_param))
   {
-    dbg(LOG_ERR, "extract_channels> json_object_object_get_ex failed. JSON data: [" + json_in + "]");
+    dbg(LOG_ERR, "extract_channels> json_object_object_get_ex failed for [" + obj_name + "] JSON data: [" + json_in + "]");
     json_object_put(jobj);
     return -1;
   }
@@ -281,7 +350,7 @@ int CSlackWeb::extract_channels(string json_in)
   enum json_type type;
   if (json_object_get_type(obj_param) != json_type_array)
   {
-    dbg(LOG_ERR, "extract_channels> Error: \"channels\" isn't an array");
+    dbg(LOG_ERR, "extract_channels> Error: \"" + obj_name + "\" isn't an array");
     json_object_put(jobj);
     return -1;
   }
@@ -289,7 +358,7 @@ int CSlackWeb::extract_channels(string json_in)
   json_object *jarray = obj_param;
   unsigned int channel_array_length = json_object_array_length(jarray);
 
-  _channels.clear();
+  
   // Loop through array of channel objects
   for (unsigned int idx = 0; idx < channel_array_length; idx++)
   {
@@ -304,9 +373,9 @@ int CSlackWeb::extract_channels(string json_in)
       continue;
     channel_obj_id_str = json_object_get_string(channel_obj_id);
 
-    // get name
+    // get name (or user for DMs)
     json_object *channel_obj_name = NULL;
-    if (!json_object_object_get_ex(channel_obj, "name", &channel_obj_name))
+    if (!json_object_object_get_ex(channel_obj, (dm ? "user" : "name"), &channel_obj_name))
       continue;
     channel_obj_name_str = json_object_get_string(channel_obj_name);
 
