@@ -44,7 +44,7 @@ public:
   
   void cbi_debug_message(int log_level, string msg)
   {
-    cout << "[" + msg + "]" << endl;
+      cout << "[" + msg + "]" << endl;
   }
 };
 

@@ -1,8 +1,8 @@
 CPPFLAGS=-g -pthread 
 LDFLAGS=-g -lpthread -lcurl
 
-INC=-I./libwebsockets/build/lib/Headers -I./libwebsockets/lib -I./libwebsockets/build -I./include -I./libwebsockets/lib
-LIB=-L./libwebsockets/build/lib
+INC=-I./include
+LIB=
 
 BUILD_DIR = build/
 SRC_DIR = cpp/
@@ -18,28 +18,24 @@ all: lib examples
 
 lib: $(LIB_DIR)libslackrtm.a
 
-$(BUILD_DIR)CWebSocket.o: $(SRC_DIR)CWebSocket.cpp $(HEAD_DIR)CWebSocket.h libwebsockets/build/lib/libwebsockets.a
+$(BUILD_DIR)CWebSocket.o: $(SRC_DIR)CWebSocket.cpp $(HEAD_DIR)CWebSocket.h 
 	g++ $(CPPFLAGS) $(INC) -c $(SRC_DIR)CWebSocket.cpp  $(CC_OUT)
 
-$(BUILD_DIR)CSlackWeb.o: $(SRC_DIR)CSlackWeb.cpp $(HEAD_DIR)CSlackWeb.h libwebsockets/build/lib/libwebsockets.a
+$(BUILD_DIR)CSlackWeb.o: $(SRC_DIR)CSlackWeb.cpp $(HEAD_DIR)CSlackWeb.h
 	g++ $(CPPFLAGS) $(INC) -c $(SRC_DIR)CSlackWeb.cpp  $(CC_OUT)
 	
-$(BUILD_DIR)CSlackWS.o: $(SRC_DIR)CSlackWS.cpp $(HEAD_DIR)CSlackWS.h libwebsockets/build/lib/libwebsockets.a
+$(BUILD_DIR)CSlackWS.o: $(SRC_DIR)CSlackWS.cpp $(HEAD_DIR)CSlackWS.h 
 	g++ $(CPPFLAGS) $(INC) -c $(SRC_DIR)CSlackWS.cpp  $(CC_OUT)
 
-$(BUILD_DIR)CSlackRTM.o: $(SRC_DIR)CSlackRTM.cpp $(HEAD_DIR)CSlackRTM.h libwebsockets/build/lib/libwebsockets.a
+$(BUILD_DIR)CSlackRTM.o: $(SRC_DIR)CSlackRTM.cpp $(HEAD_DIR)CSlackRTM.h
 	g++ $(INC) -Wall -c $(SRC_DIR)CSlackRTM.cpp $(CC_OUT)
 
-$(LIB_DIR)slackrtm.a: $(OBJS)
-	ar -cq $(LIB_DIR)slackrtm.a $(OBJS)
+$(LIB_DIR)libslackrtm.a: $(OBJS)
+	ar -cq $(LIB_DIR)libslackrtm.a $(OBJS)
 
-libwebsockets/build/lib/libwebsockets.a: 
-	mkdir -p libwebsockets/build
-	cd libwebsockets/build ; cmake .. ; $(MAKE)
 	
-$(LIB_DIR)libslackrtm.a: $(LIB_DIR)slackrtm.a libwebsockets/build/lib/libwebsockets.a 
-	cp ./libwebsockets/build/lib/libwebsockets.a $(LIB_DIR)libslackrtm.a
-	ar r $(LIB_DIR)libslackrtm.a $(OBJS)
+# $(LIB_DIR)libslackrtm.a: $(LIB_DIR)slackrtm.a 
+#	cp $(LIB_DIR)slackrtm.a  $(LIB_DIR)libslackrtm.a
 
 examples: $(LIB_DIR)libslackrtm.a
 	cd examples/minimal ; $(MAKE)

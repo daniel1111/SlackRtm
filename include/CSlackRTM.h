@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <utf8.h>            // libutfcpp-dev
 #include <boost/algorithm/string/replace.hpp>
-#include <json/json.h>       // libjson0-dev
+#include <json-c/json.h>       // libjson0-dev... libjson-c-dev
 #include <syslog.h>
 
 class CSlackRTM

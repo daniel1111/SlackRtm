@@ -1,7 +1,7 @@
-LDFLAGS=-g -lpthread -lcurl -lrt -lssl -lcrypto -lz -ljson -lmosquitto -lmosquittopp 
+LDFLAGS=-g -lwebsockets -lpthread -lcurl -lrt -lssl -lcrypto -lz -ljson-c -lmosquitto -lmosquittopp 
 
 SLACK_LIB = ../../lib/libslackrtm.a
-INC = -I../../include/ -I../../libwebsockets/build/lib/Headers -I../../libwebsockets/lib -I../../libwebsockets/build
+INC = -I../../include/
 
 all: SlackMqtt
 

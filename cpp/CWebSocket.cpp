@@ -41,9 +41,7 @@
 
 using namespace std;
 
-static int ws_static_callback(struct libwebsocket_context *wsc, struct libwebsocket *wsi, 
-  enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len);
-
+ 
 static CWebSocket *g_CWebSocket;
 
 char *CWebSocket::store_string(string s)
@@ -62,16 +60,16 @@ CWebSocket::CWebSocket(SlackRTMCallbackInterface *cb)
   protocol = NULL;
   path = NULL;
   address = NULL;
+  address_and_port = NULL;
   memset(protocols, 0, sizeof(protocols)); 
   port = -1;
   context = NULL;
   status = NOT_CONNECTED;
   t_service = -1;
   iface = NULL;
-  pthread_mutex_init (&ws_mutex, NULL);  
+  pthread_mutex_init (&mut_connection_status, NULL);
   set_protocol("");
   g_CWebSocket = this;
-//lws_set_log_level(LLL_ERR | LLL_WARN | LLL_NOTICE | LLL_INFO | LLL_DEBUG | LLL_PARSER | LLL_HEADER | LLL_EXT | LLL_CLIENT | LLL_LATENCY, &CWebSocket::s_web_socket_debug);
   lws_set_log_level(0xFF, &CWebSocket::s_web_socket_debug);
 }
 
@@ -92,7 +90,7 @@ int CWebSocket::set_address(string address)
   if (CWebSocket::address != NULL)
     free(CWebSocket::address);
   
-  CWebSocket::address = store_string(address);
+  CWebSocket::address = store_string(address);  
   return 0; 
 }
 
@@ -125,7 +123,7 @@ int CWebSocket::set_protocol(string protocol)
     free(CWebSocket::protocol);  
   
   protocols[0].name = store_string(protocol);
-  protocols[0].callback = ws_static_callback;
+  protocols[0].callback = &CWebSocket::ws_static_callback;
 //protocols[0].rx_buffer_size = (1024*16); // 16k buffer
   CWebSocket::protocol = store_string(protocol);
   return 0; 
@@ -141,6 +139,7 @@ int CWebSocket::set_port(int port)
 int CWebSocket::ws_open()
 {
   struct lws_context_creation_info info;
+  struct lws_client_connect_info connect_info;
   int use_ssl;
   char *proto;
   memset(&info, 0, sizeof info);
@@ -150,56 +149,87 @@ int CWebSocket::ws_open()
     dbg(LOG_ERR, "CWebSocket::open(): NULL required property!");
     return -1;
   }
-
+  
+  if (CWebSocket::address_and_port != NULL)
+      free(CWebSocket::address_and_port);    
+  CWebSocket::address_and_port = store_string((string)address + ":" + itos(port));
+  dbg(LOG_INFO, "address_and_port=[" + (string)address_and_port + "]");
+  dbg(LOG_INFO, "address=[" + (string)address + "]");
+  dbg(LOG_INFO, "port=[" + itos(port) + "]");
+  
   info.port = CONTEXT_PORT_NO_LISTEN;
   info.protocols = protocols;
   info.gid = -1;
   info.uid = -1;  
   info.iface = iface;
+  info.options = 0;
+  info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
+  info.ssl_cert_filepath = NULL;
+  info.ssl_private_key_filepath = NULL;
 
-  context = libwebsocket_create_context(&info);
+  context = lws_create_context(&info);
   if (context == NULL) 
   {
-    dbg(LOG_ERR, "libwebsocket_create_context failed");
+    dbg(LOG_ERR, "lws_create_context failed");
     return -1;
   }
   
-  use_ssl = 1;
+  use_ssl = 2;
   if (strlen(protocol) == 0)
     proto = 0;
   else
     proto = protocol;
   
-  ws = libwebsocket_client_connect_extended(context, address, port, use_ssl, path, address, address, proto, -1, this);
-  if (ws == NULL) 
+  memset(&connect_info, 0, sizeof(connect_info));
+  
+  
+  connect_info.port = port;
+  connect_info.address = address;
+  connect_info.path = path;
+  connect_info.context = context;
+  connect_info.ssl_connection = use_ssl;
+  connect_info.host = address; //address_and_port; libwebsockets fails with certificate verify errors if this includes the port
+  connect_info.origin = address_and_port;
+  connect_info.ietf_version_or_minus_one = -1;
+  connect_info.protocol = proto;
+  connect_info.userdata = this;
+
+  dbg(LOG_ERR, "About to call lws_client_connect_via_info");
+  ws = lws_client_connect_via_info(&connect_info);
+
+  if (ws == NULL)
   {
-    dbg(LOG_ERR, "libwebsocket_client_connect_extended failed");
+    dbg(LOG_ERR, "lws_client_connect_via_info failed");
     return -1;
   }
 
   dbg(LOG_NOTICE, "Websocket connection opened");
+  get_mutex(MUT_CONNECTION_STATUS);
   status = CONNECTED;
-  
+  release_mutex(MUT_CONNECTION_STATUS);
+
   return 0;
 }
 
 
 int CWebSocket::ws_send(string s)
 {
-  dbg(LOG_DEBUG, "> " + s);
+  dbg(LOG_INFO, "> " + s);
+
+  get_mutex(MUT_CONNECTION_STATUS);
   if (status != CONNECTED)
   {
-    dbg(LOG_DEBUG, "Not connected!");
+    dbg(LOG_WARNING, "ws_send: Not connected!");
+    release_mutex(MUT_CONNECTION_STATUS);
     return -1;
   }
 
   // Queue the message for transmission by the service routine
-  pthread_mutex_lock(&ws_mutex);
   _ws_queue.push(s);
 
   // request a callback to transmit it
-  libwebsocket_callback_on_writable(context, ws);
-  pthread_mutex_unlock(&ws_mutex);
+  dbg(LOG_DEBUG, "lws_callback_on_writable(ws)=" + itos(lws_callback_on_writable(ws)));
+  release_mutex(MUT_CONNECTION_STATUS);
 
   return 0;
 }
@@ -216,9 +246,9 @@ int CWebSocket::service()
 
 void *CWebSocket::service_thread(void *arg)
 {
-    CWebSocket *ws;
-    ws = (CWebSocket*) arg;  
-    ws->service_thread();
+    CWebSocket *cws;
+    cws = (CWebSocket*) arg;
+    cws->service_thread();
     return 0;
 }
 
@@ -226,16 +256,19 @@ void CWebSocket::service_thread()
 {
   int n=0;
   
+    dbg(LOG_DEBUG, "Entered service_thread");
     while ((n==0) && (status == CONNECTED))
     {
-      n = libwebsocket_service(context, 100);
+        //dbg(LOG_DEBUG, "Call lws_service");
+        n = lws_service(context, 100);
+
     }
-  
+
     status = NOT_CONNECTED;
     dbg(LOG_NOTICE, "Websocket disconnected!");
-    if (context != NULL)  
+    if (context != NULL)
     {
-      libwebsocket_context_destroy(context);
+      lws_context_destroy(context);
       context = NULL;
     }
 }
@@ -248,6 +281,9 @@ CWebSocket::~CWebSocket()
 
   if (address != NULL)
     free(address);
+
+  if (address_and_port != NULL)
+    free(address_and_port);
 
   if (CWebSocket::iface != NULL)
     free(iface);
@@ -263,32 +299,46 @@ CWebSocket::~CWebSocket()
   dbg(LOG_DEBUG, "~CWebSocket(): Done");
 }
 
-int CWebSocket::ws_callback(struct libwebsocket_context *wsc, struct libwebsocket *wsi, enum libwebsocket_callback_reasons reason, void *in, size_t len)
+int CWebSocket::ws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *in, size_t len)
 {
 
-//  printf("ws_callback> reason=[%d], size=[%d] (%s)\n", reason, len, reason2text(reason).c_str());
-
-  switch (reason) 
+  switch (reason)
   {
+    
+    // *** When adding an extra case here, it must also be added to ws_static_callback ***
+
     case LWS_CALLBACK_CLOSED:
       dbg(LOG_DEBUG, "LWS_CALLBACK_CLOSED");
+
+      get_mutex(MUT_CONNECTION_STATUS);
       status = NOT_CONNECTED;
+      release_mutex(MUT_CONNECTION_STATUS);
       break;
+
+    case LWS_CALLBACK_WSI_DESTROY:
+      dbg(LOG_DEBUG, "LWS_CALLBACK_WSI_DESTROY");
+
+      get_mutex(MUT_CONNECTION_STATUS);
+      status = NOT_CONNECTED;
+      release_mutex(MUT_CONNECTION_STATUS);
 
     case LWS_CALLBACK_CLIENT_RECEIVE:
       ((char *)in)[len] = '\0';
-      
-      dbg(LOG_DEBUG, "< " + (string)((char*)in));
+
+      dbg(LOG_INFO, "< " + (string)((char*)in));
       got_data((char*)in);
       break;
-      
+
     case LWS_CALLBACK_CLIENT_ESTABLISHED:
-      libwebsocket_callback_on_writable(wsc, wsi);
+      lws_callback_on_writable(wsi);
       break;
-      
+
     case LWS_CALLBACK_CLIENT_WRITEABLE:
       ws_send_pending();
       break;
+
+    case LWS_CALLBACK_GET_THREAD_ID:
+      return pthread_self();
 
     default:
       break;
@@ -299,10 +349,11 @@ int CWebSocket::ws_callback(struct libwebsocket_context *wsc, struct libwebsocke
 
 int CWebSocket::ws_send_pending()
 {
-  pthread_mutex_lock(&ws_mutex);
+  dbg(LOG_DEBUG, "ws_send_pending enter");
+
   if (_ws_queue.size() <= 0)
   {
-    pthread_mutex_unlock(&ws_mutex);
+    dbg(LOG_DEBUG, "ws_send_pending exit");
     return 0;
   }
 
@@ -315,16 +366,69 @@ int CWebSocket::ws_send_pending()
 
   strcpy((char*)(buf+LWS_SEND_BUFFER_PRE_PADDING), s.c_str());
 
-  libwebsocket_write(ws, buf+LWS_SEND_BUFFER_PRE_PADDING, s.length()+1, LWS_WRITE_TEXT);
+  lws_write(ws, buf+LWS_SEND_BUFFER_PRE_PADDING, s.length()+1, LWS_WRITE_TEXT);
 
   free(buf);
   _ws_queue.pop();
 
   // If there's still stuff left to be sent, ask for a callback when we can send it.
   if (_ws_queue.size() > 0)
-    libwebsocket_callback_on_writable(context, ws);
+    lws_callback_on_writable(ws);
 
-  pthread_mutex_unlock(&ws_mutex);
+  dbg(LOG_DEBUG, "ws_send_pending exit");
+}
+
+void CWebSocket::get_mutex(ws_mutex enum_mutex)
+{
+  pthread_mutex_t *pthread_mutex;
+  string mutex_desription="";
+
+  if (!get_mutex_from_enum(enum_mutex, &pthread_mutex, mutex_desription))
+  {
+    dbg(LOG_ERR, "get_mutex(): get_mutex_from_enum failed! (enum_mutex = " + itos(enum_mutex) + ")");
+  }
+  else
+  {
+    dbg(LOG_DEBUG, "get_mutex(): getting [" + mutex_desription + "] lock...");
+    pthread_mutex_lock(pthread_mutex);
+    dbg(LOG_DEBUG, "get_mutex(): lock acquired");
+  }
+}
+
+void CWebSocket::release_mutex(ws_mutex enum_mutex)
+{
+  pthread_mutex_t *pthread_mutex;
+  string mutex_desription="";
+
+  if (!get_mutex_from_enum(enum_mutex, &pthread_mutex, mutex_desription))
+  {
+    dbg(LOG_ERR, "release_mutex(): get_mutex_from_enum failed! (enum_mutex = " + itos(enum_mutex) + ")");
+  }
+  else
+  {
+    pthread_mutex_unlock(pthread_mutex);
+    dbg(LOG_DEBUG, "release_mutex(): releasing [" + mutex_desription + "]");
+  }
+}
+
+bool CWebSocket::get_mutex_from_enum(ws_mutex enum_mutex, pthread_mutex_t **pthread_mutex_out, string &mutex_desription_out)
+{
+  bool ret=true;
+
+  switch (enum_mutex)
+  {
+    case MUT_CONNECTION_STATUS:
+      *pthread_mutex_out = &mut_connection_status;
+      mutex_desription_out = "MUT_CONNECTION_STATUS";
+      break;
+
+    default:
+      ret = false;
+      mutex_desription_out = "UNKNOWN!";
+      break;
+  }
+
+  return ret;
 }
 
 string CWebSocket::reason2text(int code)
@@ -373,19 +477,41 @@ string CWebSocket::reason2text(int code)
   }
   return reason;
 }
-  
-  
-static int ws_static_callback(struct libwebsocket_context *wsc, struct libwebsocket *wsi, 
-  enum libwebsocket_callback_reasons reason, void *user, void *in, size_t len)
+
+int CWebSocket::ws_static_callback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len)  
 {
-  CWebSocket *ws; 
-  ws = (CWebSocket*) user;
-  return ws->ws_callback(wsc, wsi, reason, in, len);
+  if (g_CWebSocket)
+    if (reason != LWS_CALLBACK_GET_THREAD_ID) // LWS_CALLBACK_GET_THREAD_ID is called very frequently, so don't write it out
+      g_CWebSocket->dbg(LOG_DEBUG,"ws_callback> reason=[" + itos(reason) + "] size=[" + itos(len) + "] (" + reason2text(reason) + ")");
+
+  // Usually, user is the user data supplied when connecting. But depening on the reason, it might be something else.
+  // So sadly we can't just assume if it's set, is a pointer to a CWebSocket object.
+  switch (reason)
+  {
+    case LWS_CALLBACK_CLOSED:
+    case LWS_CALLBACK_WSI_DESTROY:
+    case LWS_CALLBACK_CLIENT_RECEIVE:
+    case LWS_CALLBACK_CLIENT_ESTABLISHED:
+    case LWS_CALLBACK_CLIENT_WRITEABLE:
+    case LWS_CALLBACK_GET_THREAD_ID:
+      if (user)
+      {
+        CWebSocket *ws; 
+        ws = (CWebSocket*) user;
+        return ws->ws_callback(wsi, reason, in, len);
+      }
+      break;
+  
+    default:
+      break;
+  }
+
+  return 0;
 }
 
 void CWebSocket::dbg(int dbglvl, string msg)
 {
-  _cb->cbi_debug_message(dbglvl, "CWebSocket::" + msg);
+  _cb->cbi_debug_message(dbglvl, "CWebSocket(" + itos(pthread_self()) + ")::" + msg);
 }
 
 string itos(int n)

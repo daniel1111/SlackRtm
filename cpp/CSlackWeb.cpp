@@ -32,7 +32,7 @@
 #include <stdio.h>
 #include <string>
 #include <cerrno>
-#include <json/json.h>       // libjson0-dev
+#include <json-c/json.h>       // libjson0-dev...  libjson-c-dev
 #include <curl/curl.h>       // libcurl4-gnutls-dev
 
 using namespace std;
