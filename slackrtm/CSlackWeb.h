@@ -6,7 +6,7 @@
 #include <json-c/json.h>       // libjson0-dev.... libjson-c-dev
 #include <curl/curl.h>       // libcurl4-gnutls-dev
 #include <syslog.h>
-#include "SlackRTMCallbackInterface.h"
+#include "include/SlackRTMCallbackInterface.h"
 
 class CSlackWeb
 {

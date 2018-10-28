@@ -48,9 +48,11 @@ char *CWebSocket::store_string(string s)
 {
   //Note: need to free() any strings created in destructor
   char *c;
-  c = (char*)malloc(s.length()+1);
+
+  c = (char*)malloc(s.length()+2);
   memset(c, 0, s.length()+1);
   strcpy(c, s.c_str());
+
   return c;
 }
 
@@ -323,10 +325,13 @@ int CWebSocket::ws_callback(struct lws *wsi, enum lws_callback_reasons reason, v
       release_mutex(MUT_CONNECTION_STATUS);
 
     case LWS_CALLBACK_CLIENT_RECEIVE:
-      ((char *)in)[len] = '\0';
+      if (in)
+      {
+        ((char *)in)[len] = '\0';
 
-      dbg(LOG_INFO, "< " + (string)((char*)in));
-      got_data((char*)in);
+        dbg(LOG_INFO, "< " + (string)((char*)in));
+        got_data((char*)in);
+      }
       break;
 
     case LWS_CALLBACK_CLIENT_ESTABLISHED:

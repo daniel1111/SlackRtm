@@ -120,7 +120,7 @@ int CSlackRTM::connect_to_slack()
 //_sws->set_iface("eth0");
   _sws->set_port(443);
   _sws->set_address(server);
-  _sws->set_path(server + path);
+  _sws->set_path(path);
   _sws->start();
   
   _last_msg_received = time(NULL);

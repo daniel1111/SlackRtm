@@ -4,7 +4,7 @@
 #include <queue>
 #include <syslog.h>
 #include "libwebsockets.h"
-#include "SlackRTMCallbackInterface.h"
+#include "include/SlackRTMCallbackInterface.h"
  
 
 std::string itos(int n);

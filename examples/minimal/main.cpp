@@ -1,7 +1,9 @@
 #include <string>
 #include <iostream>
+#include <syslog.h>
+#include <unistd.h>
 
-#include "CSlackRTM.h"
+#include "slackrtm/slackrtm.h"
 
 
 using namespace std;

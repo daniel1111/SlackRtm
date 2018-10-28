@@ -1,6 +1,9 @@
+#ifndef CSLACKRTM_H
+#define CSLACKRTM_H
+
 #include "CSlackWS.h"
 #include "CSlackWeb.h"
-#include "SlackRTMCallbackInterface.h"
+#include "include/SlackRTMCallbackInterface.h"
 
 #include <string>
 #include <algorithm>
@@ -56,3 +59,5 @@ private:
   act_msg _act_thread_msg;
   
 };
+
+#endif
