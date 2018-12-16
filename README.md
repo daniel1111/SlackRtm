@@ -13,21 +13,15 @@ SlackRtm is a very minimal c++ library for the Slack Real Time Messaging protoco
 ## Requirements
 
 * Linux; current only tested on Debian Stretch.
-* Required packages: g++ libjson-c-dev libcurl4-gnutls-dev libutfcpp-dev libboost-dev libmosquittopp-dev libmosquitto-dev mosquitto mosquitto-clients libwebsockets-dev
-* A [Vagrantfile](https://www.vagrantup.com/) is included, so a "vagrant up" should be all that's needed to test it
+* Required packages: g++ libjson-c-dev libcurl4-gnutls-dev libutfcpp-dev libboost-dev libmosquittopp-dev libmosquitto-dev mosquitto mosquitto-clients libwebsockets-dev cmake
 
 ## slackmqtt
-### Installation from Source
+### Building
 
-1. Install the required packages: "apt-get install g++ libjson-c-dev libcurl4-gnutls-dev libutfcpp-dev libboost-dev libmosquittopp-dev libmosquitto-dev mosquitto mosquitto-clients libwebsockets-dev"
-2. After cloning, run "make" in the root
+1. Install the required packages: "apt-get install g++ libjson-c-dev libcurl4-gnutls-dev libutfcpp-dev libboost-dev libmosquittopp-dev libmosquitto-dev mosquitto mosquitto-clients libwebsockets-dev cmake"
+2. After cloning, run "cmake ." in the root
 
-### Installation from binary package
-Download the binary package [slackmqtt_0.2-1_amd64.deb](https://github.com/daniel1111/SlackRtm/releases/download/v0.2/slackmqtt_0.2-1_amd64.deb), then run:
-```
-dpkg --install slackmqtt_0.2-1_amd64.deb
-apt-get install -f
-```
+
 ### Usage
 
 1. Get an API token from Slack, goto:
@@ -40,9 +34,7 @@ apt-get install -f
 
 ```
 ./examples/mqtt/SlackMqtt -k "<token>"
-or
-/usr/bin/SlackMqtt -k "<token>"
-```
+
 
 By default, SlackMqtt expects to find an MQTT broker running on localhost, port 1883; this can be overridden by passing the "-p \<port\>" and/or "-h \<host\>" parameters.
 
@@ -54,7 +46,7 @@ E.g. to send a message to #general, run "mosquitto_pub -t 'slack/tx/general' -m 
 ### Glaring ommisions
 * No ability to send PMs
 * No systemd, upstart or init script included yet, so needs be ran directly from the console. It is able to redirect logging to syslog (parameter "-l SYSLOG"), so writing such a script probably isn't hard
-* Only tested on - and for the moment, probably only works on - Debian (0.1 for Jessie, 0.2 for Stretch) for amd64
+* Only tested on - and for the moment, probably only works on - Debian Stretch
 * Probably a lot more
 
 ## slackrtm
