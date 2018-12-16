@@ -1,9 +1,11 @@
 #include <string>
 #include <iostream>
 #include <mosquittopp.h> //   libmosquittopp-dev
-// #include <string.h>
-#include "CSlackRTM.h"
 #include <syslog.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "slackrtm/slackrtm.h"
 
 using namespace std;
 

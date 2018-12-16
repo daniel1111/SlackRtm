@@ -1,7 +1,9 @@
 #include <string>
 #include <iostream>
+#include <syslog.h>
+#include <unistd.h>
 
-#include "CSlackRTM.h"
+#include "slackrtm/slackrtm.h"
 
 
 using namespace std;
@@ -44,7 +46,7 @@ public:
   
   void cbi_debug_message(int log_level, string msg)
   {
-    cout << "[" + msg + "]" << endl;
+      cout << "[" + msg + "]" << endl;
   }
 };
 

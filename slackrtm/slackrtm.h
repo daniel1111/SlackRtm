@@ -1,12 +1,15 @@
+#ifndef CSLACKRTM_H
+#define CSLACKRTM_H
+
 #include "CSlackWS.h"
 #include "CSlackWeb.h"
-#include "SlackRTMCallbackInterface.h"
+#include "include/SlackRTMCallbackInterface.h"
 
 #include <string>
 #include <algorithm>
 #include <utf8.h>            // libutfcpp-dev
 #include <boost/algorithm/string/replace.hpp>
-#include <json/json.h>       // libjson0-dev
+#include <json-c/json.h>     // libjson0-dev... libjson-c-dev
 #include <syslog.h>
 
 class CSlackRTM
@@ -34,15 +37,14 @@ private:
   std::string escape_from_slack(std::string message);
   int extract_channel_details(std::string message, std::string &channel_name, std::string &channel_id);
   int extract_user_details(std::string message, std::string &user_name, std::string &user_id);
-  
+ 
   time_t _last_msg_received;
   std::string _api_url;
   std::string _token;
   CSlackWS *_sws;
   CSlackWeb *_sweb;
   SlackRTMCallbackInterface *_cb;
-  
-  
+
   enum act_msg 
   {
     ACT_MSG_NOTHING,
@@ -56,3 +58,5 @@ private:
   act_msg _act_thread_msg;
   
 };
+
+#endif

@@ -1,7 +1,19 @@
 *.o
+*.so
 *~
 *.kate-swp
 .vagrant
 
 examples/minimal/SlackMinimal
 examples/mqtt/SlackMqtt
+
+slackrtm/version.h
+
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake

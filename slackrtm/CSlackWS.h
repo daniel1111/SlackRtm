@@ -1,5 +1,5 @@
 #include "CWebSocket.h"
-#include "SlackRTMCallbackInterface.h"
+#include "include/SlackRTMCallbackInterface.h"
 
 class CSlackWS : public CWebSocket
 {

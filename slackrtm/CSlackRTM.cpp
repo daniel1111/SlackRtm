@@ -27,7 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "CSlackRTM.h"
+#include "slackrtm.h"
 
   
 using namespace std;
