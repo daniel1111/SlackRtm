@@ -34,7 +34,7 @@ SlackRtm is a very minimal c++ library for the Slack Real Time Messaging protoco
 
 ```
 ./examples/mqtt/SlackMqtt -k "<token>"
-
+```
 
 By default, SlackMqtt expects to find an MQTT broker running on localhost, port 1883; this can be overridden by passing the "-p \<port\>" and/or "-h \<host\>" parameters.
 
