@@ -18,7 +18,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 # Target
-add_library(${LIBRARY_NAME} ${LIBRARY_TYPE} ${SOURCES} ${HEADERS})
+add_library(${LIBRARY_NAME} SHARED ${SOURCES} ${HEADERS})
+add_library(${LIBRARY_NAME}_static STATIC ${SOURCES} ${HEADERS})
 
 # Install library
 install(TARGETS ${LIBRARY_NAME}
