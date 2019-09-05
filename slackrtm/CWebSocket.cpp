@@ -381,6 +381,7 @@ int CWebSocket::ws_send_pending()
     lws_callback_on_writable(ws);
 
   dbg(LOG_DEBUG, "ws_send_pending exit");
+  return 0;
 }
 
 void CWebSocket::get_mutex(ws_mutex enum_mutex)

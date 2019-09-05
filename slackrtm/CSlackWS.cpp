@@ -42,6 +42,7 @@ CSlackWS::CSlackWS(int (*slack_callback)(string, void*), void *cb_param, SlackRT
 int CSlackWS::got_data(string data)
 {
   _slack_callback(data, _cb_param);
+  return 0;
 }
 
 int CSlackWS::start()
