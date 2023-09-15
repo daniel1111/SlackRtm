@@ -1,3 +1,7 @@
+**Don't use this - it's horribly out of date and slack API changes mean it's largely non-functional**
+
+
+
 SlackRtm
 ========
 
